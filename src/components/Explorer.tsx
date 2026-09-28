@@ -742,6 +742,7 @@ export default function Explorer() {
                 <div><span>자료 수집</span><strong>{date(metadata?.collectedAt || null)}</strong></div>
               </div>
               <div className="detail-address"><MapPin size={17} /><span>{selected.address}</span></div>
+              {cuisineOf(selected) && <NaverLocalSearch key={selected.id} storeId={selected.id} searchTerm={placeSearchQuery(selected)} />}
               {cuisineOf(selected) && <div className="restaurant-detail-info">
                 <div className="detail-section-heading"><strong>음식점 정보</strong><span>{cuisineOf(selected)}</span></div>
                 {restaurantFacts?.facts[selected.id] ? <>
@@ -753,7 +754,6 @@ export default function Explorer() {
                 <a className="detail-text-link" href={`https://map.kakao.com/link/search/${encodeURIComponent(placeSearchQuery(selected))}`} target="_blank" rel="noreferrer">카카오맵에서 &lsquo;{placeSearchQuery(selected)}&rsquo; 검색 <ArrowUpRight size={12} /></a>
               </div>}
               <KakaoPlaceInfo key={selected.id} storeId={selected.id} />
-              {cuisineOf(selected) && <NaverLocalSearch key={selected.id} storeId={selected.id} />}
               <div className="detail-source">
                 <span>공개 데이터 반영 {date(metadata?.approvedAt || null)}</span>
                 <a href={SOURCE_URL} target="_blank" rel="noreferrer">신한카드 원본에서 사용 가능 여부 확인 <ArrowUpRight size={12} /></a>
