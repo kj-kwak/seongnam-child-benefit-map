@@ -101,6 +101,16 @@ test("restaurant cuisine filtering still works if supplemental price data fails"
   await expect(page.getByRole("combobox", { name: "대표 메뉴 가격" })).toBeDisabled();
   await expect(page.getByRole("group", { name: "음식 종류 필터" }).getByRole("button", { name: /^한식/ })).toBeVisible();
 });
+test("slow supplemental data does not hold up the merchant list", async ({ page }) => {
+  await page.route("**/data/restaurant-facts-*.json", async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 2500));
+    await route.continue();
+  });
+  await page.goto("/");
+  await expect(page.locator(".store-card").first()).toBeVisible({ timeout: 1800 });
+  await page.getByRole("button", { name: "음식점 찾기" }).click();
+  await expect(page.getByRole("group", { name: "음식 종류 필터" })).toBeVisible();
+});
 test("unauthorized admin APIs and guessed routes are blocked", async ({
   request,
 }) => {

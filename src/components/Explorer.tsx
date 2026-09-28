@@ -95,6 +95,9 @@ export default function Explorer() {
     setError("");
     setFactsError(false);
     setRestaurantFacts(null);
+    setPriceFilter("any");
+    setCertifiedOnly(false);
+    setFoodSort("distance");
     fetch("/data/manifest.json", { cache: "no-store", signal: abort.signal })
       .then(async (r) => {
         if (!r.ok) throw Error();
@@ -107,25 +110,18 @@ export default function Explorer() {
         setStores(data);
         setMetadata(meta);
         if (meta.restaurantFactsUrl && /^\/data\/restaurant-facts-[a-f0-9]+\.json$/.test(meta.restaurantFactsUrl)) {
-          try {
-            const factsResponse = await fetch(meta.restaurantFactsUrl, { signal: abort.signal });
-            if (!factsResponse.ok) throw Error();
-            const snapshot: RestaurantFacts = await factsResponse.json();
-            if (!snapshot?.facts || typeof snapshot.facts !== "object" || snapshot.metadata.version !== meta.restaurantFactsUrl.match(/restaurant-facts-([a-f0-9]+)\.json$/)?.[1]) throw Error();
-            setRestaurantFacts(snapshot);
-          } catch (cause) {
-            if ((cause as Error).name !== "AbortError") {
-              setFactsError(true);
-              setPriceFilter("any");
-              setCertifiedOnly(false);
-              setFoodSort("distance");
-            }
-          }
+          void fetch(meta.restaurantFactsUrl, { signal: abort.signal })
+            .then(async (response) => {
+              if (!response.ok) throw Error();
+              const snapshot: RestaurantFacts = await response.json();
+              if (!snapshot?.facts || typeof snapshot.facts !== "object" || snapshot.metadata.version !== meta.restaurantFactsUrl?.match(/restaurant-facts-([a-f0-9]+)\.json$/)?.[1]) throw Error();
+              setRestaurantFacts(snapshot);
+            })
+            .catch((cause) => {
+              if ((cause as Error).name !== "AbortError") setFactsError(true);
+            });
         } else {
           setFactsError(true);
-          setPriceFilter("any");
-          setCertifiedOnly(false);
-          setFoodSort("distance");
         }
         const id = new URLSearchParams(window.location.search).get("store");
         if (id) {
