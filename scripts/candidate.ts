@@ -1,4 +1,4 @@
-import { readFile, copyFile, appendFile } from "node:fs/promises";
+import { readFile, copyFile, appendFile, writeFile } from "node:fs/promises";
 import { execFileSync } from "node:child_process";
 import type { Catalog, Review } from "../src/lib/types";
 const dir = process.env.COLLECT_OUTPUT || "artifacts/collection";
@@ -31,7 +31,23 @@ const matching = prs.find(
   (p: { headRefName: string; body: string }) =>
     p.headRefName.startsWith("codex/data-") && p.body?.includes(marker),
 );
+const closeSuperseded = (keepNumber?: number) => {
+  for (const p of prs.filter(
+    (p: { number: number; state: string; headRefName: string }) =>
+      p.state === "OPEN" &&
+      p.headRefName.startsWith("codex/data-") &&
+      p.number !== keepNumber,
+  ))
+    gh(["pr", "close", String(p.number), "--repo", repo]);
+};
 if (review.version === baseline.metadata.version || matching) {
+  // A newer collection can return to the published/rejected version. Do not leave
+  // an older, different candidate available for approval in that case.
+  closeSuperseded(
+    review.version !== baseline.metadata.version && matching?.state === "OPEN"
+      ? matching.number
+      : undefined,
+  );
   console.log("이미 공개되었거나 검토한 동일 데이터입니다.");
   process.exit(0);
 }
@@ -58,6 +74,7 @@ execFileSync(
 );
 execFileSync("git", ["push", "origin", branch], { stdio: "inherit" });
 const body = `${marker}\n\n신한카드 가맹점 수집 결과입니다. 관리자 화면에서 검토한 후 승인해주세요.\n\n- 수집 시각: ${review.collectedAt}\n- 원본: ${review.rawCount}건\n- 좌표 실패: ${review.geocodingFailures}건\n- 범위: ${review.partitions}/${review.expectedPartitions}\n- 기준 버전: ${review.baseVersion}\n\n자동 병합하지 않습니다.`;
+await writeFile(`${dir}/pr-body.md`, body);
 const url = gh([
   "pr",
   "create",
@@ -69,14 +86,10 @@ const url = gh([
   branch,
   "--title",
   `가맹점 데이터 검토 · ${review.collectedAt.slice(0, 10)}`,
-  "--body",
-  body,
+  "--body-file",
+  `${dir}/pr-body.md`,
 ]);
 console.log(url);
-for (const p of prs.filter(
-  (p: { state: string; headRefName: string }) =>
-    p.state === "OPEN" && p.headRefName.startsWith("codex/data-"),
-))
-  gh(["pr", "close", String(p.number), "--repo", repo]);
+closeSuperseded();
 if (process.env.GITHUB_STEP_SUMMARY)
   await appendFile(process.env.GITHUB_STEP_SUMMARY, `검토 후보: ${url}\n`);
