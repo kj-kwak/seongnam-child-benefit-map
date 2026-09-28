@@ -136,13 +136,15 @@ test("restaurant discovery filters verified menu price and opens review source",
 test("external place search links use a short store name without the street address", async ({ page }) => {
   const store = catalog.stores.find((item) => item.name.includes("김국진의집"))!;
   await page.route("**/api/naver/local?store=*", (route) => route.fulfill({
-    json: { query: "의정부부대찌개 정자동", searchTerm: "의정부부대찌개 성남시 정자동", items: [] },
+    json: { query: "의정부부대찌개 정자동", searchTerm: "의정부부대찌개 성남시 정자동", items: [{ title: "의정부부대찌개", category: "음식점", address: store.address, link: "https://example.com/place" }] },
   }));
   await page.goto(`/?store=${store.id}`);
   const kakao = await page.getByRole("link", { name: /카카오맵에서 .* 검색/ }).getAttribute("href");
-  const naver = await page.getByRole("link", { name: /네이버에서 .* 검색/ }).getAttribute("href");
+  const naver = await page.getByRole("link", { name: "네이버에서 평점·리뷰 확인" }).getAttribute("href");
   assertSearchTerm(kakao, "https://map.kakao.com/link/search/", "의정부부대찌개 성남시 정자동");
   assertSearchTerm(naver, "https://search.naver.com/search.naver?query=", "의정부부대찌개 성남시 정자동");
+  await page.getByText("관련 장소 검색 결과 1곳").click();
+  await expect(page.locator(".naver-local-results").getByRole("link", { name: /의정부부대찌개/ })).toHaveAttribute("href", "https://example.com/place");
 });
 
 function assertSearchTerm(href: string | null, prefix: string, term: string) {
