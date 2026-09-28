@@ -399,15 +399,7 @@ export default function Explorer() {
             <span />
           </button>
           <div className="search-panel">
-            <div className="eyebrow">A LITTLE HELP, CLOSE TO HOME</div>
-            <h1>
-              우리 동네에서 찾는
-              <br />
-              <span>아이를 위한 사용처</span>
-            </h1>
-            <p className="intro">
-              아동수당 쓸 수 있는 곳, 이제 쉽게 찾아보세요.
-            </p>
+            <h1 className="visually-hidden">성남 아동수당 사용처 찾기</h1>
             <div className="search-box">
               <Search size={19} />
               <input
@@ -490,11 +482,7 @@ export default function Explorer() {
                   <option value="any">전체</option><option value="known">가격 확인된 곳</option><option value="under10000">1만원 미만</option><option value="10000to20000">1만~2만원 미만</option><option value="over20000">2만원 이상</option>
                 </select></label>
               </div>
-              <div className="food-filter-row food-meta-row">
-                <span>{restaurantFacts ? `공식 대표 메뉴 가격 ${restaurantFacts.metadata.matchedCount}곳 확인` : factsError ? "추가 정보를 불러오지 못했어요. 음식 종류 검색은 이용할 수 있어요." : "음식점 추가 정보 확인 중"}</span>
-                <label className="food-select">정렬 <select aria-label="음식점 정렬" value={foodSort} onChange={(e) => setFoodSort(e.target.value as "distance" | "menuPrice")}><option value="distance">가까운 순</option><option value="menuPrice">확인된 메뉴 가격순</option></select></label>
-              </div>
-              <p className="food-disclaimer">가격은 공식 대표 메뉴 기준이며, 미확인 매장은 가격 필터에서 제외됩니다.</p>
+              <p className="food-info">{restaurantFacts ? `공식 대표 메뉴 가격 ${restaurantFacts.metadata.matchedCount}곳 확인 · 미확인 매장 제외` : factsError ? "추가 정보를 불러오지 못했어요. 음식 종류 검색은 이용할 수 있어요." : "음식점 추가 정보 확인 중"}</p>
             </> : <div className="category-list" aria-label="업종 필터">
               <button
                 className={`chip ${!category ? "active" : ""}`}
@@ -537,10 +525,10 @@ export default function Explorer() {
                     : "성남 전체에서 찾은 사용처"}
               </span>
             </div>
-            <span className="sort-label">
+            {foodMode ? <label className="food-select result-sort">정렬 <select aria-label="음식점 정렬" value={foodSort} onChange={(e) => setFoodSort(e.target.value as "distance" | "menuPrice")}><option value="distance">가까운 순</option><option value="menuPrice">확인된 메뉴 가격순</option></select></label> : <span className="sort-label">
               <SlidersHorizontal size={12} />
-              {foodMode && foodSort === "menuPrice" ? "확인된 메뉴 가격순" : `${position ? "내 위치" : "지도 중심"} 가까운 순`}
-            </span>
+              {`${position ? "내 위치" : "지도 중심"} 가까운 순`}
+            </span>}
           </div>
           <div className="store-list" ref={listRef} aria-busy={loading}>
             {loading ? (
