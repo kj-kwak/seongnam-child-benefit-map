@@ -1,0 +1,42 @@
+{
+  "metadata": {
+    "version": "4bb65b086fa36c966fad",
+    "sourceUrl": "https://www.goodprice.go.kr/bssh/bsshList.do?srchCtpvCd=41&srchSggCd=41130",
+    "collectedAt": "2026-09-28T09:08:07.682Z",
+    "publicCount": 66,
+    "matchedCount": 5,
+    "ambiguousCount": 0
+  },
+  "facts": {
+    "61b0f2708b2a90f4ca39e439": {
+      "designation": "착한가격업소",
+      "representativeMenu": "브라더돈까스",
+      "representativePrice": 10000,
+      "sourceUrl": "https://www.goodprice.go.kr/bssh/bsshList.do?srchCtpvCd=41&srchSggCd=41130"
+    },
+    "7e90ce758f42f2b74a505308": {
+      "designation": "착한가격업소",
+      "representativeMenu": "샤브손칼국수",
+      "representativePrice": 12000,
+      "sourceUrl": "https://www.goodprice.go.kr/bssh/bsshList.do?srchCtpvCd=41&srchSggCd=41130"
+    },
+    "a15b28911c39dfa2dffc8fe5": {
+      "designation": "착한가격업소",
+      "representativeMenu": "짜장면",
+      "representativePrice": 6500,
+      "sourceUrl": "https://www.goodprice.go.kr/bssh/bsshList.do?srchCtpvCd=41&srchSggCd=41130"
+    },
+    "b194fb3d012ce9d84ce7fe6e": {
+      "designation": "착한가격업소",
+      "representativeMenu": "활어초밥",
+      "representativePrice": 17000,
+      "sourceUrl": "https://www.goodprice.go.kr/bssh/bsshList.do?srchCtpvCd=41&srchSggCd=41130"
+    },
+    "c75b852cbfcfce191ccac41f": {
+      "designation": "착한가격업소",
+      "representativeMenu": "부대찌개",
+      "representativePrice": 10000,
+      "sourceUrl": "https://www.goodprice.go.kr/bssh/bsshList.do?srchCtpvCd=41&srchSggCd=41130"
+    }
+  }
+}

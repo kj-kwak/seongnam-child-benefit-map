@@ -30,8 +30,10 @@ import {
   SOURCE_URL,
   type Bounds,
   type Metadata,
+  type RestaurantFacts,
   type Store,
 } from "@/lib/types";
+import { CUISINES, cuisineOf, formatWon, type PriceFilter } from "@/lib/restaurant-search";
 const KakaoMap = dynamic(() => import("./KakaoMap"), {
   ssr: false,
   loading: () => (
@@ -62,6 +64,13 @@ export default function Explorer() {
     [district, setDistrict] = useState(""),
     [category, setCategory] = useState(""),
     [savedOnly, setSavedOnly] = useState(false);
+  const [foodMode, setFoodMode] = useState(false),
+    [cuisine, setCuisine] = useState(""),
+    [priceFilter, setPriceFilter] = useState<PriceFilter>("any"),
+    [certifiedOnly, setCertifiedOnly] = useState(false),
+    [foodSort, setFoodSort] = useState<"distance" | "menuPrice">("distance"),
+    [restaurantFacts, setRestaurantFacts] = useState<RestaurantFacts | null>(null),
+    [factsError, setFactsError] = useState(false);
   const [favorites, setFavorites] = useState<Store[]>([]),
     [storageReady, setStorageReady] = useState(false);
   const [selected, setSelected] = useState<Store | null>(null),
@@ -84,10 +93,15 @@ export default function Explorer() {
     const abort = new AbortController();
     setLoading(true);
     setError("");
+    setFactsError(false);
+    setRestaurantFacts(null);
+    setPriceFilter("any");
+    setCertifiedOnly(false);
+    setFoodSort("distance");
     fetch("/data/manifest.json", { cache: "no-store", signal: abort.signal })
       .then(async (r) => {
         if (!r.ok) throw Error();
-        const meta: Metadata & { url: string } = await r.json();
+        const meta: Metadata & { url: string; restaurantFactsUrl?: string } = await r.json();
         if (!/^\/data\/stores-[a-f0-9]+\.json$/.test(meta.url)) throw Error();
         const response = await fetch(meta.url, { signal: abort.signal });
         if (!response.ok) throw Error();
@@ -95,6 +109,20 @@ export default function Explorer() {
         if (!Array.isArray(data) || data.length !== meta.count) throw Error();
         setStores(data);
         setMetadata(meta);
+        if (meta.restaurantFactsUrl && /^\/data\/restaurant-facts-[a-f0-9]+\.json$/.test(meta.restaurantFactsUrl)) {
+          void fetch(meta.restaurantFactsUrl, { signal: abort.signal })
+            .then(async (response) => {
+              if (!response.ok) throw Error();
+              const snapshot: RestaurantFacts = await response.json();
+              if (!snapshot?.facts || typeof snapshot.facts !== "object" || snapshot.metadata.version !== meta.restaurantFactsUrl?.match(/restaurant-facts-([a-f0-9]+)\.json$/)?.[1]) throw Error();
+              setRestaurantFacts(snapshot);
+            })
+            .catch((cause) => {
+              if ((cause as Error).name !== "AbortError") setFactsError(true);
+            });
+        } else {
+          setFactsError(true);
+        }
         const id = new URLSearchParams(window.location.search).get("store");
         if (id) {
           const store = data.find((s) => s.id === id);
@@ -148,7 +176,7 @@ export default function Explorer() {
   useEffect(() => {
     setLimit(50);
     listRef.current?.scrollTo({ top: 0 });
-  }, [deferredQuery, district, category, savedOnly, bounds]);
+  }, [deferredQuery, district, category, savedOnly, bounds, foodMode, cuisine, priceFilter, certifiedOnly, foodSort]);
   const favoriteIds = useMemo(
     () => new Set(favorites.map((s) => s.id)),
     [favorites],
@@ -162,6 +190,14 @@ export default function Explorer() {
         bounds,
         favorites: savedOnly ? favoriteIds : undefined,
         center: position || center,
+        food: {
+          enabled: foodMode,
+          cuisine,
+          certifiedOnly,
+          price: priceFilter,
+          sort: foodSort,
+          facts: restaurantFacts?.facts || {},
+        },
       }),
     [
       stores,
@@ -173,6 +209,12 @@ export default function Explorer() {
       favoriteIds,
       position,
       center,
+      foodMode,
+      cuisine,
+      certifiedOnly,
+      priceFilter,
+      foodSort,
+      restaurantFacts,
     ],
   );
   const missing = useMemo(
@@ -250,6 +292,11 @@ export default function Explorer() {
     setBounds(viewBounds);
     setMoved(false);
     setSavedOnly(false);
+    setFoodMode(false);
+    setCuisine("");
+    setPriceFilter("any");
+    setCertifiedOnly(false);
+    setFoodSort("distance");
   }
   function reset() {
     setQuery("");
@@ -425,7 +472,29 @@ export default function Explorer() {
                 <Crosshair size={19} />
               </button>
             </div>
-            <div className="category-list" aria-label="업종 필터">
+            <div className="discovery-mode" role="group" aria-label="탐색 모드">
+              <button className={!foodMode ? "active" : ""} aria-pressed={!foodMode} onClick={() => setFoodMode(false)}>전체 사용처</button>
+              <button className={foodMode ? "active" : ""} aria-pressed={foodMode} onClick={() => { setFoodMode(true); setSheetHeight(85); }}>음식점 찾기</button>
+            </div>
+            {foodMode ? <>
+              <div className="category-list" role="group" aria-label="음식 종류 필터">
+                <button className={`chip ${!cuisine ? "active" : ""}`} onClick={() => setCuisine("")} aria-pressed={!cuisine}>모든 음식 <span>{result.total.toLocaleString()}</span></button>
+                {CUISINES.filter((name) => result.cuisines[name] || cuisine === name).map((name) => (
+                  <button key={name} className={`chip ${cuisine === name ? "active" : ""}`} onClick={() => setCuisine(cuisine === name ? "" : name)} aria-pressed={cuisine === name}>{name} <span>{result.cuisines[name] || 0}</span></button>
+                ))}
+              </div>
+              <div className="food-filter-row">
+                <label className="food-check"><input type="checkbox" checked={certifiedOnly} disabled={!restaurantFacts} onChange={(e) => setCertifiedOnly(e.target.checked)} /> 착한가격업소 인증</label>
+                <label className="food-select">대표 메뉴 가격 <select aria-label="대표 메뉴 가격" value={priceFilter} disabled={!restaurantFacts} onChange={(e) => setPriceFilter(e.target.value as PriceFilter)}>
+                  <option value="any">전체</option><option value="known">가격 확인된 곳</option><option value="under10000">1만원 미만</option><option value="10000to20000">1만~2만원 미만</option><option value="over20000">2만원 이상</option>
+                </select></label>
+              </div>
+              <div className="food-filter-row food-meta-row">
+                <span>{restaurantFacts ? `공식 대표 메뉴 가격 ${restaurantFacts.metadata.matchedCount}곳 확인` : factsError ? "추가 정보를 불러오지 못했어요. 음식 종류 검색은 이용할 수 있어요." : "음식점 추가 정보 확인 중"}</span>
+                <label className="food-select">정렬 <select aria-label="음식점 정렬" value={foodSort} onChange={(e) => setFoodSort(e.target.value as "distance" | "menuPrice")}><option value="distance">가까운 순</option><option value="menuPrice">확인된 메뉴 가격순</option></select></label>
+              </div>
+              <p className="food-disclaimer">가격은 공식 대표 메뉴 기준이며, 미확인 매장은 가격 필터에서 제외됩니다.</p>
+            </> : <div className="category-list" aria-label="업종 필터">
               <button
                 className={`chip ${!category ? "active" : ""}`}
                 onClick={() => setCategory("")}
@@ -450,7 +519,7 @@ export default function Explorer() {
                   {category} 0 <X size={12} />
                 </button>
               )}
-            </div>
+            </div>}
           </div>
           <div className="result-heading" id="results">
             <div>
@@ -460,7 +529,7 @@ export default function Explorer() {
                   : `${result.matches.length.toLocaleString()}곳`}
               </strong>
               <span>
-                {savedOnly
+                {foodMode ? "조건에 맞는 음식점" : savedOnly
                   ? "저장한 가맹점"
                   : bounds
                     ? "현재 지도 안의 사용처"
@@ -469,7 +538,7 @@ export default function Explorer() {
             </div>
             <span className="sort-label">
               <SlidersHorizontal size={12} />
-              {position ? "내 위치" : "지도 중심"} 가까운 순
+              {foodMode && foodSort === "menuPrice" ? "확인된 메뉴 가격순" : `${position ? "내 위치" : "지도 중심"} 가까운 순`}
             </span>
           </div>
           <div className="store-list" ref={listRef} aria-busy={loading}>
@@ -522,8 +591,9 @@ export default function Explorer() {
                         <MapPin size={19} />
                       </span>
                       <span className="store-copy">
-                        <span className="store-tag">{store.category}</span>
+                        <span className="store-tag">{foodMode ? cuisineOf(store) : store.category}</span>
                         <strong>{store.name}</strong>
+                        {restaurantFacts?.facts[store.id] && <span className="restaurant-fact-summary">착한가격업소{restaurantFacts.facts[store.id].representativePrice !== null ? ` · 대표 메뉴 ${formatWon(restaurantFacts.facts[store.id].representativePrice!)}` : ""}</span>}
                         <span className="store-address">
                           {store.address.replace(
                             /^경기(?:도)?\s*성남시\s*/,
@@ -593,6 +663,7 @@ export default function Explorer() {
               <a href={SOURCE_URL} target="_blank" rel="noreferrer">
                 방문 전 사용처 확인 <ArrowUpRight size={12} />
               </a>
+              {restaurantFacts && <a href={restaurantFacts.metadata.sourceUrl} target="_blank" rel="noreferrer">착한가격업소 정보 · {date(restaurantFacts.metadata.collectedAt)} 확인 <ArrowUpRight size={12} /></a>}
               <span>성남시·신한카드의 공식 서비스가 아닙니다.</span>
             </footer>
           </div>
@@ -643,6 +714,16 @@ export default function Explorer() {
                 {position ? "내 위치" : "지도 중심"}에서{" "}
                 {formatDistance(distance(position || center, selected))}
               </p>
+              {cuisineOf(selected) && <div className="restaurant-detail-info">
+                <span>{cuisineOf(selected)}</span>
+                {restaurantFacts?.facts[selected.id] ? <>
+                  <strong>착한가격업소</strong>
+                  {restaurantFacts.facts[selected.id].representativeMenu && <span>대표 메뉴 · {restaurantFacts.facts[selected.id].representativeMenu}</span>}
+                  {restaurantFacts.facts[selected.id].representativePrice !== null && <span>공개된 대표 메뉴 가격 · {formatWon(restaurantFacts.facts[selected.id].representativePrice!)}</span>}
+                  <a href={restaurantFacts.facts[selected.id].sourceUrl} target="_blank" rel="noreferrer">공식 목록 확인 · {date(restaurantFacts.metadata.collectedAt)} <ArrowUpRight size={12} /></a>
+                </> : <span>메뉴 가격 정보 없음</span>}
+                <a href={`https://map.kakao.com/link/search/${encodeURIComponent(`${selected.name} 성남시 ${selected.district}`)}`} target="_blank" rel="noreferrer">카카오맵에서 메뉴·후기 보기 <ArrowUpRight size={12} /></a>
+              </div>}
               <a
                 className="primary directions"
                 href={`https://map.kakao.com/link/to/${encodeURIComponent(selected.name)},${selected.lat},${selected.lng}`}

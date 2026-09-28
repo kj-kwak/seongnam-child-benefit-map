@@ -307,6 +307,67 @@ h1 span {
   scrollbar-width: thin;
   scrollbar-color: #dce5d4 transparent;
 }
+.discovery-mode {
+  display: flex;
+  gap: 6px;
+  padding: 4px;
+  margin-bottom: 9px;
+  border-radius: 12px;
+  background: #e9eee4;
+}
+.discovery-mode button {
+  flex: 1;
+  min-height: 44px;
+  border-radius: 9px;
+  color: var(--green);
+  font-size: 12px;
+  font-weight: 600;
+}
+.discovery-mode button.active {
+  background: white;
+  box-shadow: 0 2px 8px #23452c1c;
+}
+.food-filter-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 5px 0;
+  font-size: 11px;
+}
+.food-check, .food-select {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  gap: 6px;
+  color: var(--ink);
+}
+.food-check input { width: 17px; height: 17px; accent-color: var(--green); }
+.food-select select {
+  min-height: 44px;
+  max-width: 150px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: white;
+  padding: 0 5px;
+  color: var(--ink);
+  font-size: 11px;
+}
+.food-meta-row > span, .food-disclaimer { color: var(--muted); font-size: 10px; line-height: 1.5; }
+.food-disclaimer { margin: 5px 0 7px; }
+.restaurant-fact-summary { color: #56713f; font-size: 11px; font-weight: 600; }
+.restaurant-detail-info {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  border-top: 1px solid var(--line);
+  padding: 10px 0;
+  font-size: 11px;
+  color: var(--muted);
+}
+.restaurant-detail-info strong { color: #56713f; }
+.restaurant-detail-info a { color: var(--green); display: inline-flex; align-items: center; gap: 4px; text-decoration: underline; }
 .chip {
   white-space: nowrap;
   border: 1px solid var(--line);
@@ -975,6 +1036,9 @@ h1 span {
   }
   .search-panel {
     padding: 0 19px 4px;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
   }
   .eyebrow,
   h1,
@@ -1014,6 +1078,7 @@ h1 span {
   }
   .store-list {
     padding: 0 12px 20px;
+    min-height: 120px;
   }
   .store-main {
     padding: 15px 9px;
