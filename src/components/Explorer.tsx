@@ -478,7 +478,7 @@ export default function Explorer() {
             </div>
             <div className="discovery-mode" role="group" aria-label="탐색 모드">
               <button className={!foodMode ? "active" : ""} aria-pressed={!foodMode} onClick={() => setFoodMode(false)}>전체 사용처</button>
-              <button className={foodMode ? "active" : ""} aria-pressed={foodMode} onClick={() => setFoodMode(true)}>음식점 찾기</button>
+              <button className={foodMode ? "active" : ""} aria-pressed={foodMode} onClick={() => { setFoodMode(true); setSheetHeight(85); }}>음식점 찾기</button>
             </div>
             {foodMode ? <>
               <div className="category-list" role="group" aria-label="음식 종류 필터">
@@ -497,7 +497,7 @@ export default function Explorer() {
                 <span>{restaurantFacts ? `공식 대표 메뉴 가격 ${restaurantFacts.metadata.matchedCount}곳 확인` : factsError ? "추가 정보를 불러오지 못했어요. 음식 종류 검색은 이용할 수 있어요." : "음식점 추가 정보 확인 중"}</span>
                 <label className="food-select">정렬 <select aria-label="음식점 정렬" value={foodSort} onChange={(e) => setFoodSort(e.target.value as "distance" | "menuPrice")}><option value="distance">가까운 순</option><option value="menuPrice">확인된 메뉴 가격순</option></select></label>
               </div>
-              <p className="food-disclaimer">가격은 식당 평균 가격이 아닌 공개된 대표 메뉴 가격입니다. 가격 정보가 없는 곳은 가격 필터에서 제외됩니다. 후기는 카카오맵에서 확인하세요.</p>
+              <p className="food-disclaimer">가격은 공식 대표 메뉴 기준이며, 미확인 매장은 가격 필터에서 제외됩니다.</p>
             </> : <div className="category-list" aria-label="업종 필터">
               <button
                 className={`chip ${!category ? "active" : ""}`}
