@@ -161,3 +161,55 @@ test("data retry and denied location keep list browsing available", async ({
   );
   await expect(page.locator(".store-card").first()).toBeVisible();
 });
+
+test("admin review paginates and searches without changing overall counts", async ({
+  page,
+}) => {
+  await page.route("**/api/admin?*", async (route) => {
+    const url = new URL(route.request().url());
+    const query = url.searchParams.get("query");
+    const pageNumber = Number(url.searchParams.get("page") || 0);
+    const name = query
+      ? "검색한 가맹점"
+      : pageNumber
+        ? "다음 가맹점"
+        : "첫 가맹점";
+    await route.fulfill({
+      json: {
+        current: catalog.metadata,
+        candidate: {
+          number: 9,
+          sha: "c".repeat(40),
+          metadata: catalog.metadata,
+          review: null,
+          errors: [],
+          changes: [
+            {
+              id: "example",
+              kind: "added",
+              after: { ...catalog.stores[0], name },
+            },
+          ],
+          counts: { added: 120, removed: 0, modified: 0 },
+          totalChanges: query ? 1 : 120,
+          totalFailures: 0,
+          page: pageNumber,
+          failurePage: 0,
+          failures: [],
+        },
+        run: null,
+        history: [],
+      },
+    });
+  });
+  await page.goto(`/${"a".repeat(64)}/enter`);
+  await expect(page.getByText("첫 가맹점", { exact: true })).toBeVisible();
+  await expect(page.getByText("추가 120곳", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "다음 변경" }).click();
+  await expect(page.getByText("다음 가맹점", { exact: true })).toBeVisible();
+  await page.getByRole("textbox", { name: "변경 가맹점 검색" }).fill("검색");
+  await expect(page.getByText("검색한 가맹점", { exact: true })).toBeVisible();
+  await expect(page.getByText("추가 120곳", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "다음 변경" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "이전 변경" })).toBeDisabled();
+});

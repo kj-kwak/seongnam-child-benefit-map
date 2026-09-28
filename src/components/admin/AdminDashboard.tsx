@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useRef } from "react";
 import { Check, RefreshCw, ShieldCheck, Undo2, X } from "lucide-react";
 import type { Change, Metadata, Review, Store, RawStore } from "@/lib/types";
 type Status = {
@@ -11,6 +11,11 @@ type Status = {
     review: Review | null;
     errors: string[];
     changes: Change[];
+    counts: Record<"added" | "removed" | "modified", number>;
+    totalChanges: number;
+    totalFailures: number;
+    page: number;
+    failurePage: number;
     failures: { store: RawStore; reason: string }[];
   } | null;
   run: { status: string; conclusion: string | null; created_at: string } | null;
@@ -46,27 +51,41 @@ export default function AdminDashboard({ readOnly }: { readOnly: boolean }) {
     [message, setMessage] = useState(""),
     [busy, setBusy] = useState(false),
     [query, setQuery] = useState(""),
-    [limit, setLimit] = useState(50),
+    [page, setPage] = useState(0),
+    [failurePage, setFailurePage] = useState(0),
     [confirm, setConfirm] = useState<Action | null>(null);
+  const requestId = useRef(0);
   const refresh = useCallback(async () => {
+    const id = ++requestId.current;
     setBusy(true);
     setError("");
     try {
-      const r = await fetch("/api/admin", { cache: "no-store" }),
+      const params = new URLSearchParams({
+        query,
+        page: String(page),
+        failurePage: String(failurePage),
+      });
+      const r = await fetch(`/api/admin?${params}`, { cache: "no-store" }),
         result = await r.json();
       if (!r.ok) throw new Error(result.error);
+      if (id !== requestId.current) return;
       setData(result);
       setConfirm(null);
       const p = await fetch("/api/catalog/version", { cache: "no-store" });
       if (p.ok) setPublished(await p.json());
     } catch (e) {
-      setError((e as Error).message);
+      if (id === requestId.current) setError((e as Error).message);
     } finally {
-      setBusy(false);
+      if (id === requestId.current) setBusy(false);
     }
-  }, []);
+  }, [query, page, failurePage]);
   useEffect(() => {
-    void refresh();
+    const activeRequest = requestId;
+    const timer = setTimeout(() => void refresh(), 300);
+    return () => {
+      clearTimeout(timer);
+      activeRequest.current++;
+    };
   }, [refresh]);
   useEffect(() => {
     const timer = setInterval(() => {
@@ -99,12 +118,7 @@ export default function AdminDashboard({ readOnly }: { readOnly: boolean }) {
     }
   }
   const candidate = data?.candidate,
-    changes =
-      candidate?.changes.filter((c) =>
-        `${c.before?.name || ""} ${c.after?.name || ""} ${c.before?.address || ""} ${c.after?.address || ""}`
-          .toLowerCase()
-          .includes(query.toLowerCase()),
-      ) || [];
+    changes = candidate?.changes || [];
   return (
     <main className="admin-shell">
       <header className="admin-header">
@@ -193,9 +207,7 @@ export default function AdminDashboard({ readOnly }: { readOnly: boolean }) {
                 <div className="row">
                   {(["added", "removed", "modified"] as const).map((kind) => (
                     <span key={kind} className={`badge ${kind}`}>
-                      {labels[kind]}{" "}
-                      {candidate.changes.filter((c) => c.kind === kind).length}
-                      곳
+                      {labels[kind]} {candidate.counts[kind]}곳
                     </span>
                   ))}
                 </div>
@@ -214,10 +226,10 @@ export default function AdminDashboard({ readOnly }: { readOnly: boolean }) {
                     {e}
                   </div>
                 ))}
-                {candidate.failures.length > 0 && (
+                {candidate.totalFailures > 0 && (
                   <details className="error-box">
                     <summary>
-                      좌표를 확인하지 못한 가맹점 {candidate.failures.length}곳
+                      좌표를 확인하지 못한 가맹점 {candidate.totalFailures}곳
                     </summary>
                     <div className="admin-table-scroll">
                       <table className="admin-table">
@@ -229,31 +241,44 @@ export default function AdminDashboard({ readOnly }: { readOnly: boolean }) {
                           </tr>
                         </thead>
                         <tbody>
-                          {candidate.failures
-                            .filter((f) =>
-                              `${f.store.name} ${f.store.address}`.includes(
-                                query,
-                              ),
-                            )
-                            .slice(0, limit)
-                            .map((f, i) => (
-                              <tr key={i}>
-                                <td>{f.store.name}</td>
-                                <td>{f.store.address}</td>
-                                <td>{f.reason}</td>
-                              </tr>
-                            ))}
+                          {candidate.failures.map((f, i) => (
+                            <tr key={i}>
+                              <td>{f.store.name}</td>
+                              <td>{f.store.address}</td>
+                              <td>{f.reason}</td>
+                            </tr>
+                          ))}
                         </tbody>
                       </table>
                     </div>
-                    {candidate.failures.length > limit && (
+                    <div className="admin-toolbar">
                       <button
                         className="secondary"
-                        onClick={() => setLimit((n) => n + 50)}
+                        disabled={busy || candidate.failurePage === 0}
+                        onClick={() =>
+                          setFailurePage(candidate.failurePage - 1)
+                        }
                       >
-                        실패 항목 더 보기
+                        이전 실패 항목
                       </button>
-                    )}
+                      <span>
+                        {candidate.failurePage + 1} /{" "}
+                        {Math.max(1, Math.ceil(candidate.totalFailures / 50))}
+                      </span>
+                      <button
+                        className="secondary"
+                        disabled={
+                          busy ||
+                          (candidate.failurePage + 1) * 50 >=
+                            candidate.totalFailures
+                        }
+                        onClick={() =>
+                          setFailurePage(candidate.failurePage + 1)
+                        }
+                      >
+                        다음 실패 항목
+                      </button>
+                    </div>
                   </details>
                 )}
                 <div className="admin-toolbar">
@@ -263,7 +288,8 @@ export default function AdminDashboard({ readOnly }: { readOnly: boolean }) {
                     value={query}
                     onChange={(e) => {
                       setQuery(e.target.value);
-                      setLimit(50);
+                      setPage(0);
+                      setFailurePage(0);
                     }}
                   />
                   <button
@@ -305,7 +331,7 @@ export default function AdminDashboard({ readOnly }: { readOnly: boolean }) {
                       </tr>
                     </thead>
                     <tbody>
-                      {changes.slice(0, limit).map((c) => (
+                      {changes.map((c) => (
                         <tr key={c.id}>
                           <td>
                             <span className={`badge ${c.kind}`}>
@@ -322,14 +348,29 @@ export default function AdminDashboard({ readOnly }: { readOnly: boolean }) {
                 {!changes.length && (
                   <p className="admin-subtitle">표시할 변경 내역이 없습니다.</p>
                 )}
-                {changes.length > limit && (
+                <div className="admin-toolbar">
                   <button
                     className="secondary"
-                    onClick={() => setLimit((x) => x + 50)}
+                    disabled={busy || candidate.page === 0}
+                    onClick={() => setPage(candidate.page - 1)}
                   >
-                    변경 내역 더 보기
+                    이전 변경
                   </button>
-                )}
+                  <span>
+                    {candidate.totalChanges}건 · {candidate.page + 1} /{" "}
+                    {Math.max(1, Math.ceil(candidate.totalChanges / 50))}
+                  </span>
+                  <button
+                    className="secondary"
+                    disabled={
+                      busy ||
+                      (candidate.page + 1) * 50 >= candidate.totalChanges
+                    }
+                    onClick={() => setPage(candidate.page + 1)}
+                  >
+                    다음 변경
+                  </button>
+                </div>
               </>
             )}
           </section>

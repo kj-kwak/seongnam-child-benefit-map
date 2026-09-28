@@ -143,3 +143,21 @@ test("real catalog validates and 10k-store search stays below 300ms", () => {
   );
   assert.ok(elapsed < 300);
 });
+
+test("admin review pages large diffs without losing counts or server search", async () => {
+  const { paginateReview } = await import("../src/lib/review");
+  const changes = Array.from({ length: 120 }, (_, i) => ({
+    id: String(i),
+    kind: "added" as const,
+    after: toStore({ ...base, name: `가게 ${i}` }),
+  }));
+  const first = paginateReview(changes, []);
+  assert.equal(first.changes.length, 50);
+  assert.equal(first.counts.added, 120);
+  assert.equal(first.totalChanges, 120);
+  assert.equal(paginateReview(changes, [], "", 2).changes.length, 20);
+  const search = paginateReview(changes, [], "가게 119");
+  assert.equal(search.totalChanges, 1);
+  assert.equal(search.changes[0].after?.name, "가게 119");
+  assert.equal(search.counts.added, 120);
+});

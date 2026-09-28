@@ -1,6 +1,7 @@
 import { AdminError } from "./admin-auth";
 import { github, readJSON, head, commitFiles, withLock } from "./github";
 import { diffCatalog, validateCatalog } from "./catalog";
+import { paginateReview } from "./review";
 import type { Catalog, Review, RawStore } from "./types";
 type PR = {
   number: number;
@@ -78,7 +79,7 @@ export async function reviewCandidate(pr: PR, base: Catalog) {
     errors.push("공개 데이터가 변경되었습니다. 다음 수집 후보를 기다려주세요.");
   return { catalog, review, errors, changes: diffCatalog(base, catalog) };
 }
-export async function getStatus() {
+export async function getStatus(query = "", page = 0, failurePage = 0) {
   const [base, pr, runs, commits] = await Promise.all([
     readJSON<Catalog>("data/catalog.json"),
     pending(),
@@ -107,8 +108,7 @@ export async function getStatus() {
         metadata: r.catalog.metadata,
         review: r.review,
         errors: r.errors,
-        changes: r.changes,
-        failures,
+        ...paginateReview(r.changes, failures, query, page, failurePage),
       };
     } catch (e) {
       candidate = {
@@ -119,8 +119,7 @@ export async function getStatus() {
         errors: [
           e instanceof AdminError ? e.message : "후보를 읽지 못했습니다.",
         ],
-        changes: [],
-        failures: [],
+        ...paginateReview([], []),
       };
     }
   }

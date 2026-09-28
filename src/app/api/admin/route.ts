@@ -32,10 +32,23 @@ function failure(e: unknown) {
     },
   );
 }
-export async function GET() {
+export async function GET(request: Request) {
   try {
     await authorized();
-    return Response.json(await getStatus(), { headers: privateHeaders });
+    const params = new URL(request.url).searchParams;
+    const page = (name: string) =>
+      Math.min(
+        10000,
+        Math.max(0, Number.parseInt(params.get(name) || "0", 10) || 0),
+      );
+    return Response.json(
+      await getStatus(
+        (params.get("query") || "").slice(0, 200),
+        page("page"),
+        page("failurePage"),
+      ),
+      { headers: privateHeaders },
+    );
   } catch (e) {
     return failure(e);
   }

@@ -45,9 +45,26 @@ export async function github<T>(
   if (response.status === 204) return undefined as T;
   return response.json();
 }
+const jsonCache = new Map<string, Promise<unknown>>();
 export async function readJSON<T>(path: string, ref = "main"): Promise<T> {
-  // Git blobs handle the multi-megabyte catalog without the Contents API's 1 MB inline limit.
   const resolved = /^[a-f0-9]{40}$/.test(ref) ? ref : await head(ref);
+  const key = `${repo()}/${resolved}/${path}`;
+  let pending = jsonCache.get(key);
+  if (!pending) {
+    pending = readJSONAtCommit(path, resolved).catch((e) => {
+      jsonCache.delete(key);
+      throw e;
+    });
+    jsonCache.set(key, pending);
+    if (jsonCache.size > 12) jsonCache.delete(jsonCache.keys().next().value!);
+  }
+  return structuredClone(await pending) as T;
+}
+async function readJSONAtCommit(
+  path: string,
+  resolved: string,
+): Promise<unknown> {
+  // Git blobs handle the multi-megabyte catalog without the Contents API's 1 MB inline limit.
   const commit = await github<{ tree: { sha: string } }>(
     `/git/commits/${resolved}`,
   );
