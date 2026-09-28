@@ -10,13 +10,16 @@ import {
   ChevronDown,
   Crosshair,
   Heart,
+  FileText,
   MapPin,
+  MessageCircle,
   Navigation,
   Search,
   Share2,
   X,
   Copy,
   SlidersHorizontal,
+  UtensilsCrossed,
 } from "lucide-react";
 import {
   CITY_CENTER,
@@ -332,6 +335,8 @@ export default function Explorer() {
       over20000: "2만원 이상",
     }[priceFilter] : "",
   ].filter(Boolean);
+  const selectedCuisine = selected ? cuisineOf(selected) : "";
+  const selectedRestaurantFact = selected ? restaurantFacts?.facts[selected.id] : null;
   return (
     <App>
       <a className="skip-link" href="#results">
@@ -736,28 +741,34 @@ export default function Explorer() {
               </div>
               <h2>{selected.name}</h2>
               <div className="detail-status"><Check size={15} /> 신한카드 아동수당 사용처 목록</div>
-              <div className="detail-keyfacts">
-                <div><span>업종</span><strong>{selected.type || selected.category}</strong></div>
-                <div><span>{position ? "내 위치에서" : "지도 중심에서"}</span><strong>{formatDistance(distance(position || center, selected))}</strong></div>
-                <div><span>자료 수집</span><strong>{date(metadata?.collectedAt || null)}</strong></div>
-              </div>
-              <div className="detail-address"><MapPin size={17} /><span>{selected.address}</span></div>
-              {cuisineOf(selected) && <NaverLocalSearch key={selected.id} storeId={selected.id} searchTerm={placeSearchQuery(selected)} />}
-              {cuisineOf(selected) && <div className="restaurant-detail-info">
-                <div className="detail-section-heading"><strong>음식점 정보</strong><span>{cuisineOf(selected)}</span></div>
-                {restaurantFacts?.facts[selected.id] ? <>
-                  <span className="detail-certification">착한가격업소 인증</span>
-                  {restaurantFacts.facts[selected.id].representativeMenu && <div className="detail-menu"><span>공식 대표 메뉴</span><strong>{restaurantFacts.facts[selected.id].representativeMenu}</strong></div>}
-                  {restaurantFacts.facts[selected.id].representativePrice !== null && <div className="detail-menu"><span>공개 가격</span><strong>{formatWon(restaurantFacts.facts[selected.id].representativePrice!)}</strong></div>}
-                  <a className="detail-text-link" href={restaurantFacts.facts[selected.id].sourceUrl} target="_blank" rel="noreferrer">공식 목록 · {date(restaurantFacts.metadata.collectedAt)} 확인 <ArrowUpRight size={12} /></a>
-                </> : <span>공식 대표 메뉴·가격 정보는 확인되지 않았어요.</span>}
-                <a className="detail-text-link" href={`https://map.kakao.com/link/search/${encodeURIComponent(placeSearchQuery(selected))}`} target="_blank" rel="noreferrer">카카오맵에서 &lsquo;{placeSearchQuery(selected)}&rsquo; 검색 <ArrowUpRight size={12} /></a>
-              </div>}
+              <section className="detail-card detail-overview" aria-label="가맹점 기본 정보">
+                <div className="detail-card-title"><span className="detail-card-icon"><MapPin size={18} /></span><div><h3>기본 정보</h3><small>어떤 곳인지, 어디에 있는지</small></div></div>
+                <div className="detail-keyfacts">
+                  <div><span>업종</span><strong>{selected.type || selected.category}</strong></div>
+                  <div><span>{position ? "내 위치에서" : "지도 중심에서"}</span><strong>{formatDistance(distance(position || center, selected))}</strong></div>
+                </div>
+                <div className="detail-address"><span>주소</span><strong>{selected.address}</strong></div>
+              </section>
+              {selectedCuisine && selectedRestaurantFact && <section className="detail-card restaurant-detail-info" aria-label="확인된 음식점 정보">
+                <div className="detail-card-title"><span className="detail-card-icon detail-card-icon-amber"><UtensilsCrossed size={18} /></span><div><h3>확인된 메뉴·가격</h3><small>착한가격업소 공개 자료</small></div></div>
+                <span className="detail-certification">착한가격업소 인증</span>
+                {selectedRestaurantFact.representativeMenu && <div className="detail-menu"><span>대표 메뉴</span><strong>{selectedRestaurantFact.representativeMenu}</strong></div>}
+                {selectedRestaurantFact.representativePrice !== null && <div className="detail-menu"><span>공개 가격</span><strong>{formatWon(selectedRestaurantFact.representativePrice)}</strong></div>}
+                <a className="detail-inline-link" href={selectedRestaurantFact.sourceUrl} target="_blank" rel="noreferrer">공식 목록 · {date(restaurantFacts?.metadata.collectedAt || null)} 확인 <ArrowUpRight size={14} /></a>
+              </section>}
+              {selectedCuisine && <section className="detail-card detail-discovery" aria-label="메뉴와 후기 확인">
+                <div className="detail-card-title"><span className="detail-card-icon detail-card-icon-rose"><MessageCircle size={18} /></span><div><h3>메뉴·후기</h3><small>외부 지도 서비스에서 확인</small></div></div>
+                <NaverLocalSearch key={selected.id} storeId={selected.id} searchTerm={placeSearchQuery(selected)} />
+                <a className="detail-provider-link" href={`https://map.kakao.com/link/search/${encodeURIComponent(placeSearchQuery(selected))}`} target="_blank" rel="noreferrer"><span className="detail-provider-badge detail-provider-kakao">K</span><span><strong>카카오맵에서 메뉴·후기 검색</strong><small>가게 이름으로 찾기</small></span><ArrowUpRight size={16} /></a>
+                <p className="detail-discovery-note">검색된 장소의 주소가 이 가맹점과 같은지 확인해 주세요.</p>
+              </section>}
               <KakaoPlaceInfo key={selected.id} storeId={selected.id} />
-              <div className="detail-source">
-                <span>공개 데이터 반영 {date(metadata?.approvedAt || null)}</span>
-                <a href={SOURCE_URL} target="_blank" rel="noreferrer">신한카드 원본에서 사용 가능 여부 확인 <ArrowUpRight size={12} /></a>
-              </div>
+              <section className="detail-card detail-source" aria-label="데이터 출처">
+                <div className="detail-card-title"><span className="detail-card-icon"><FileText size={18} /></span><div><h3>데이터 출처</h3><small>신한카드 아동수당 사용처</small></div></div>
+                {metadata?.collectedAt && <div className="detail-source-date"><span>자료 수집</span><strong>{date(metadata.collectedAt)}</strong></div>}
+                {metadata?.approvedAt && <div className="detail-source-date"><span>서비스 반영</span><strong>{date(metadata.approvedAt)}</strong></div>}
+                <a className="detail-inline-link" href={SOURCE_URL} target="_blank" rel="noreferrer">신한카드 원본에서 사용 가능 여부 확인 <ArrowUpRight size={14} /></a>
+              </section>
               <div className="detail-footer">
                 <div className="direction-options">
                   <a

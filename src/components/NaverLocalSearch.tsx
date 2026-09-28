@@ -27,9 +27,8 @@ export default function NaverLocalSearch({ storeId, searchTerm }: { storeId: str
     return () => controller.abort();
   }, [storeId]);
 
-  return <section className="naver-local" aria-label="네이버 평점과 리뷰 확인">
-      <a className="secondary naver-review-link" href={`https://search.naver.com/search.naver?query=${encodeURIComponent(searchTerm)}`} target="_blank" rel="noreferrer">네이버에서 평점·리뷰 확인 <ArrowUpRight size={15} /></a>
-      <p className="naver-local-note">검색 결과에서 같은 가게인지 주소를 확인해 주세요.</p>
+  return <div className="naver-local">
+      <a className="detail-provider-link" aria-label="네이버에서 평점·리뷰 확인" href={`https://search.naver.com/search.naver?query=${encodeURIComponent(searchTerm)}`} target="_blank" rel="noreferrer"><span className="detail-provider-badge detail-provider-naver">N</span><span><strong>네이버에서 평점·리뷰 확인</strong><small>네이버 검색 결과 열기</small></span><ArrowUpRight size={16} /></a>
       {result?.items.length ? <details className="naver-related"><summary>관련 장소 검색 결과 {result.items.length}곳 <ChevronDown size={15} /></summary><ol className="naver-local-results">
           {result.items.map((item, index) => <li key={`${index}-${item.title}`}>
             {item.link ? <a href={item.link} target="_blank" rel="noreferrer"><strong>{item.title}</strong> <ArrowUpRight size={12} /></a> : <strong>{item.title}</strong>}
@@ -37,5 +36,5 @@ export default function NaverLocalSearch({ storeId, searchTerm }: { storeId: str
             {item.address && <span>{item.address}</span>}
           </li>)}
         </ol></details> : null}
-  </section>;
+  </div>;
 }
