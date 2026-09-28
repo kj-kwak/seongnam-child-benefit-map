@@ -89,10 +89,27 @@ test("restaurant discovery filters verified menu price and opens review source",
   await expect(page.locator(".store-card").first()).toContainText("6,500원");
   await page.locator(".store-main").first().click();
   await expect(page.getByRole("region", { name: "선택한 가맹점 상세" })).toContainText("착한가격업소");
-  await expect(page.getByRole("link", { name: /카카오맵에서 메뉴·후기 보기/ })).toHaveAttribute("href", /^https:\/\/map.kakao.com\/link\/search\//);
+  await expect(page.getByRole("link", { name: /카카오맵에서 .* 검색/ })).toHaveAttribute("href", /^https:\/\/map.kakao.com\/link\/search\//);
   await page.getByRole("combobox", { name: "대표 메뉴 가격" }).selectOption("over20000");
   await expect(page.getByText("조건에 맞는 사용처가 없어요")).toBeVisible();
 });
+test("external place search links use a short store name without the street address", async ({ page }) => {
+  const store = catalog.stores.find((item) => item.name.includes("김국진의집"))!;
+  await page.route("**/api/naver/local?store=*", (route) => route.fulfill({
+    json: { query: "의정부부대찌개 정자동", searchTerm: "의정부부대찌개 성남시 정자동", items: [] },
+  }));
+  await page.goto(`/?store=${store.id}`);
+  const kakao = await page.getByRole("link", { name: /카카오맵에서 .* 검색/ }).getAttribute("href");
+  const naver = await page.getByRole("link", { name: /네이버에서 .* 검색/ }).getAttribute("href");
+  assertSearchTerm(kakao, "https://map.kakao.com/link/search/", "의정부부대찌개 성남시 정자동");
+  assertSearchTerm(naver, "https://search.naver.com/search.naver?query=", "의정부부대찌개 성남시 정자동");
+});
+
+function assertSearchTerm(href: string | null, prefix: string, term: string) {
+  expect(href).not.toBeNull();
+  expect(href!.startsWith(prefix)).toBe(true);
+  expect(decodeURIComponent(href!.slice(prefix.length))).toBe(term);
+}
 test("restaurant cuisine filtering still works if supplemental price data fails", async ({ page }) => {
   await page.route("**/data/restaurant-facts-*.json", (route) => route.abort());
   await page.goto("/");

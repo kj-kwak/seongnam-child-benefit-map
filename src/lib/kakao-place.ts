@@ -23,10 +23,15 @@ interface KakaoDocument {
 const compact = (value: string) => value.normalize("NFKC").replace(/[^\p{L}\p{N}]/gu, "").toLowerCase();
 const road = (value: string) => compact(value.match(/[가-힣0-9]+(?:로|길)\s*\d+(?:-\d+)?/)?.[0] || "");
 
-export function placeQuery(store: Store, fallback = false) {
-  if (!fallback) return store.name;
+export function placeQuery(store: Pick<Store, "name">, fallback = false) {
+  if (!fallback) return store.name.trim().replace(/\s+/g, " ");
   const words = store.name.trim().split(/\s+/).filter((word) => compact(word).length >= 4);
-  return words.sort((a, b) => compact(b).length - compact(a).length)[0] || "";
+  return words.sort((a, b) => compact(b).length - compact(a).length)[0] || store.name.trim().replace(/\s+/g, " ");
+}
+
+export function placeSearchQuery(store: Pick<Store, "name" | "address"> & { district: string }) {
+  const neighborhood = store.address.match(/\(([가-힣]+동)\)/)?.[1];
+  return `${placeQuery(store, true)} 성남시 ${neighborhood || store.district}`;
 }
 
 export function matchKakaoPlace(store: Store, documents: KakaoDocument[]): KakaoPlace | null {

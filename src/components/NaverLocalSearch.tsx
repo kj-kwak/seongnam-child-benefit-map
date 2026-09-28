@@ -5,6 +5,7 @@ import { ArrowUpRight } from "lucide-react";
 
 type SearchResult = {
   query: string;
+  searchTerm: string;
   items: { title: string; category: string; address: string; link: string }[];
 };
 
@@ -50,7 +51,7 @@ export default function NaverLocalSearch({ storeId }: { storeId: string }) {
             {item.address && <span>{item.address}</span>}
           </li>)}
         </ol> : <p>네이버에 관련 검색 결과가 없어요.</p>}
-        <a className="naver-source" href={`https://search.naver.com/search.naver?query=${encodeURIComponent(result.query)}`} target="_blank" rel="noreferrer">네이버에서 원본 검색 보기 <ArrowUpRight size={13} /></a>
+        <a className="naver-source" href={`https://search.naver.com/search.naver?query=${encodeURIComponent(result.searchTerm)}`} target="_blank" rel="noreferrer">네이버에서 &lsquo;{result.searchTerm}&rsquo; 검색 <ArrowUpRight size={13} /></a>
       </>}
   </section>;
 }

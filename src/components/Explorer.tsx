@@ -36,6 +36,7 @@ import {
 import { CUISINES, cuisineOf, formatWon, type PriceFilter } from "@/lib/restaurant-search";
 import NaverLocalSearch from "./NaverLocalSearch";
 import KakaoPlaceInfo from "./KakaoPlaceInfo";
+import { placeSearchQuery } from "@/lib/kakao-place";
 const KakaoMap = dynamic(() => import("./KakaoMap"), {
   ssr: false,
   loading: () => (
@@ -711,7 +712,7 @@ export default function Explorer() {
                   {restaurantFacts.facts[selected.id].representativePrice !== null && <div className="detail-menu"><span>공개 가격</span><strong>{formatWon(restaurantFacts.facts[selected.id].representativePrice!)}</strong></div>}
                   <a className="detail-text-link" href={restaurantFacts.facts[selected.id].sourceUrl} target="_blank" rel="noreferrer">공식 목록 · {date(restaurantFacts.metadata.collectedAt)} 확인 <ArrowUpRight size={12} /></a>
                 </> : <span>공식 대표 메뉴·가격 정보는 확인되지 않았어요.</span>}
-                <a className="detail-text-link" href={`https://map.kakao.com/link/search/${encodeURIComponent(`${selected.name} 성남시 ${selected.district}`)}`} target="_blank" rel="noreferrer">카카오맵에서 메뉴·후기 보기 <ArrowUpRight size={12} /></a>
+                <a className="detail-text-link" href={`https://map.kakao.com/link/search/${encodeURIComponent(placeSearchQuery(selected))}`} target="_blank" rel="noreferrer">카카오맵에서 &lsquo;{placeSearchQuery(selected)}&rsquo; 검색 <ArrowUpRight size={12} /></a>
               </div>}
               <KakaoPlaceInfo key={selected.id} storeId={selected.id} />
               {cuisineOf(selected) && <NaverLocalSearch key={selected.id} storeId={selected.id} />}

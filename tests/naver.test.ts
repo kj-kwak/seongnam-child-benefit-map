@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { NextRequest } from "next/server";
 import catalog from "../data/catalog.json";
 import { GET } from "../src/app/api/naver/local/route";
+import { placeQuery, placeSearchQuery } from "../src/lib/kakao-place";
 
 test("NAVER lookup is store-scoped, keeps provider order, and never caches or exposes credentials", async () => {
   const food = catalog.stores.find((store) => store.category === "음식점");
@@ -17,7 +18,8 @@ test("NAVER lookup is store-scoped, keeps provider order, and never caches or ex
     calls++;
     const url = new URL(String(input));
     assert.equal(url.host, "naverapihub.apigw.ntruss.com");
-    assert.ok((url.searchParams.get("query") || "").includes(food.name));
+    assert.equal(url.searchParams.get("query"), placeQuery(food));
+    assert.ok(!/\d+(?:-\d+)?$/.test(url.searchParams.get("query") || ""));
     assert.equal(url.searchParams.get("display"), "5");
     assert.equal((init?.headers as Record<string, string>)["X-NCP-APIGW-API-KEY"], "test-secret");
     return Response.json({ items: [
@@ -36,6 +38,7 @@ test("NAVER lookup is store-scoped, keeps provider order, and never caches or ex
     assert.deepEqual(body.items.map((item: { title: string }) => item.title), ["첫째", "둘째"]);
     assert.equal(body.items[0].link, "");
     assert.equal(body.items[1].link, "https://example.com/place");
+    assert.equal(body.searchTerm, placeSearchQuery(food));
     assert.ok(!JSON.stringify(body).includes("test-secret"));
     assert.equal(calls, 1);
   } finally {
@@ -69,6 +72,8 @@ test("NAVER lookup retries a shorter neighborhood query only after an empty resu
     assert.equal(queries.length, 2);
     assert.match(queries[1], /의정부부대찌개 정자동/);
     assert.equal(body.query, queries[1]);
+    assert.equal(queries[0], "김국진의집 의정부부대찌개");
+    assert.equal(body.searchTerm, "의정부부대찌개 성남시 정자동");
   } finally {
     globalThis.fetch = originalFetch;
     if (oldId === undefined) delete process.env.NAVER_API_HUB_CLIENT_ID;

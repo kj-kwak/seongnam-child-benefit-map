@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { NextRequest } from "next/server";
 import catalog from "../data/catalog.json";
-import { matchKakaoPlace } from "../src/lib/kakao-place";
+import { matchKakaoPlace, placeQuery, placeSearchQuery } from "../src/lib/kakao-place";
 import { GET } from "../src/app/api/kakao/place/route";
 import type { Store } from "../src/lib/types";
 
@@ -10,6 +10,9 @@ const store = catalog.stores.find((item) => item.name.includes("김국진의집"
 
 test("Kakao place lookup labels renamed places and rejects unrelated coordinates or addresses", () => {
   assert.ok(store);
+  assert.equal(placeQuery(store), "김국진의집 의정부부대찌개");
+  assert.equal(placeQuery(store, true), "의정부부대찌개");
+  assert.equal(placeSearchQuery(store), "의정부부대찌개 성남시 정자동");
   const related = {
     place_name: "명품의정부부대찌개",
     category_name: "음식점 > 한식",
