@@ -1,0 +1,215 @@
+import { test, expect } from "@playwright/test";
+import catalog from "../data/catalog.json";
+const numeric = catalog.stores.find((s) => /^\d/.test(s.name))!;
+test("search, numeric store selection, share link and persistent favorite work without map SDK", async ({
+  page,
+}) => {
+  const errors: string[] = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+  await page.goto("/");
+  await expect(
+    page.getByRole("button", { name: /즐겨찾기 저장/ }).first(),
+  ).toBeVisible();
+  await page
+    .getByRole("textbox", { name: "가맹점 이름 또는 주소 검색" })
+    .fill(numeric.name);
+  await expect(
+    page
+      .getByRole("button", {
+        name: `${numeric.name} 즐겨찾기 저장`,
+        exact: true,
+      })
+      .first(),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: `${numeric.name} 즐겨찾기 저장`, exact: true })
+    .first()
+    .click();
+  await page.locator(".store-main").first().click();
+  await expect(page).toHaveURL(/store=/);
+  await expect(
+    page.getByRole("link", { name: /카카오맵 길찾기/ }),
+  ).toHaveAttribute("href", /^https:\/\/map.kakao.com\/link\/to\//);
+  await page.reload();
+  await expect(
+    page.getByRole("region", { name: "선택한 가맹점 상세" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "상세 닫기" }).click();
+  await page.getByRole("button", { name: /저장한 곳/ }).click();
+  await expect(
+    page
+      .getByRole("button", {
+        name: `${numeric.name} 즐겨찾기 해제`,
+        exact: true,
+      })
+      .first(),
+  ).toBeVisible();
+  expect(errors).toEqual([]);
+});
+test("empty results, removed favorites and map failure remain usable", async ({
+  page,
+}) => {
+  await page.addInitScript(() =>
+    localStorage.setItem(
+      "seongnam-favorites-v1",
+      JSON.stringify([
+        { id: "removed", name: "이전 가맹점", address: "경기 성남시 분당구" },
+      ]),
+    ),
+  );
+  await page.goto("/");
+  await expect(page.getByText("지도를 잠시 불러올 수 없어요")).toBeVisible();
+  await page
+    .getByRole("textbox", { name: "가맹점 이름 또는 주소 검색" })
+    .fill("없는가맹점xyz");
+  await expect(page.getByText("조건에 맞는 사용처가 없어요")).toBeVisible();
+  await page.getByRole("button", { name: /저장한 곳/ }).click();
+  await expect(page.getByText("현재 목록에서 확인되지 않음")).toBeVisible();
+  await page.getByRole("button", { name: "즐겨찾기에서 제거" }).click();
+  await expect(page.getByText("자주 가는 곳을 저장해보세요")).toBeVisible();
+});
+test("unauthorized admin APIs and guessed routes are blocked", async ({
+  request,
+}) => {
+  expect((await request.get("/api/admin")).status()).toBe(401);
+  expect(
+    (
+      await request.post("/api/admin", { data: { action: "approve" } })
+    ).status(),
+  ).toBe(401);
+  expect((await request.get("/guessed-admin/review")).status()).toBe(404);
+});
+test("secret entry issues protected session and cross-origin mutation is blocked", async ({
+  page,
+  context,
+}) => {
+  await page.goto(`/${"a".repeat(64)}/enter`);
+  await expect(
+    page.getByRole("heading", { name: "가맹점 데이터 관리" }),
+  ).toBeVisible();
+  const cookie = (await context.cookies()).find(
+    (c) => c.name === "seongnam-admin",
+  );
+  expect(cookie?.httpOnly).toBe(true);
+  expect(cookie?.sameSite).toBe("Strict");
+  expect(cookie?.secure).toBe(true);
+  const r = await page.request.post("/api/admin", {
+    headers: { Origin: "https://attacker.example" },
+    data: { action: "approve" },
+  });
+  expect(r.status()).toBe(403);
+});
+test("mobile list can scroll and page has no horizontal overflow", async ({
+  page,
+}, testInfo) => {
+  await page.goto("/");
+  await expect(page.locator(".store-card").first()).toBeVisible();
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth,
+    ),
+  ).toBe(true);
+  if (testInfo.project.name === "mobile") {
+    const handle = page.getByRole("button", { name: "목록 높이 조절" });
+    const before = await page
+      .locator(".sidebar")
+      .evaluate((el) => el.getBoundingClientRect().height);
+    const box = await handle.boundingBox();
+    if (!box) throw new Error("Handle not visible");
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2 - 140, {
+      steps: 12,
+    });
+    await page.mouse.up();
+    const after = await page
+      .locator(".sidebar")
+      .evaluate((el) => el.getBoundingClientRect().height);
+    expect(after).toBeGreaterThan(before + 100);
+    const list = page.locator(".store-list");
+    await list.evaluate((el) => {
+      el.scrollTop = 200;
+    });
+    expect(await list.evaluate((el) => el.scrollTop)).toBeGreaterThan(0);
+  }
+});
+
+test("data retry and denied location keep list browsing available", async ({
+  page,
+}) => {
+  await page.addInitScript(() =>
+    Object.defineProperty(navigator, "geolocation", {
+      value: {
+        getCurrentPosition: (
+          _success: unknown,
+          fail: (error: unknown) => void,
+        ) => fail({ code: 1 }),
+      },
+    }),
+  );
+  await page.route("**/data/manifest.json", (route) => route.abort());
+  await page.goto("/");
+  await expect(
+    page.getByText("가맹점 정보를 불러오지 못했어요.", { exact: false }),
+  ).toBeVisible();
+  await page.unroute("**/data/manifest.json");
+  await page.getByRole("button", { name: "다시 불러오기" }).click();
+  await expect(page.locator(".store-card").first()).toBeVisible();
+  await page.getByRole("button", { name: "현재 위치 찾기" }).click();
+  await expect(page.getByRole("status")).toContainText(
+    "위치를 확인할 수 없어요",
+  );
+  await expect(page.locator(".store-card").first()).toBeVisible();
+});
+
+test("admin review paginates and searches without changing overall counts", async ({
+  page,
+}) => {
+  await page.route("**/api/admin?*", async (route) => {
+    const url = new URL(route.request().url());
+    const query = url.searchParams.get("query");
+    const pageNumber = Number(url.searchParams.get("page") || 0);
+    const name = query
+      ? "검색한 가맹점"
+      : pageNumber
+        ? "다음 가맹점"
+        : "첫 가맹점";
+    await route.fulfill({
+      json: {
+        current: catalog.metadata,
+        candidate: {
+          number: 9,
+          sha: "c".repeat(40),
+          metadata: catalog.metadata,
+          review: null,
+          errors: [],
+          changes: [
+            {
+              id: "example",
+              kind: "added",
+              after: { ...catalog.stores[0], name },
+            },
+          ],
+          counts: { added: 120, removed: 0, modified: 0 },
+          totalChanges: query ? 1 : 120,
+          totalFailures: 0,
+          page: pageNumber,
+          failurePage: 0,
+          failures: [],
+        },
+        run: null,
+        history: [],
+      },
+    });
+  });
+  await page.goto(`/${"a".repeat(64)}/enter`);
+  await expect(page.getByText("첫 가맹점", { exact: true })).toBeVisible();
+  await expect(page.getByText("추가 120곳", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "다음 변경" }).click();
+  await expect(page.getByText("다음 가맹점", { exact: true })).toBeVisible();
+  await page.getByRole("textbox", { name: "변경 가맹점 검색" }).fill("검색");
+  await expect(page.getByText("검색한 가맹점", { exact: true })).toBeVisible();
+  await expect(page.getByText("추가 120곳", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "다음 변경" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "이전 변경" })).toBeDisabled();
+});
