@@ -78,7 +78,8 @@ export default function Explorer() {
     [sheetHeight, setSheetHeight] = useState(52);
   const mapInitialized = useRef(false),
     listRef = useRef<HTMLDivElement>(null),
-    drag = useRef<{ y: number; height: number } | null>(null);
+    drag = useRef<{ y: number; height: number; moved: boolean } | null>(null);
+  const suppressHandleClick = useRef(false);
   useEffect(() => {
     const abort = new AbortController();
     setLoading(true);
@@ -295,13 +296,37 @@ export default function Explorer() {
           <button
             className="sheet-handle"
             aria-label="목록 높이 조절"
-            onClick={() => setSheetHeight((h) => (h > 65 ? 52 : 85))}
+            onClick={() => {
+              if (suppressHandleClick.current) {
+                suppressHandleClick.current = false;
+                return;
+              }
+              setSheetHeight((h) => (h > 65 ? 52 : 85));
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+                e.preventDefault();
+                setSheetHeight((h) =>
+                  Math.min(
+                    85,
+                    Math.max(26, h + (e.key === "ArrowUp" ? 10 : -10)),
+                  ),
+                );
+              }
+            }}
             onPointerDown={(e) => {
-              drag.current = { y: e.clientY, height: sheetHeight };
+              drag.current = {
+                y: e.clientY,
+                height: sheetHeight,
+                moved: false,
+              };
+              suppressHandleClick.current = false;
               e.currentTarget.setPointerCapture(e.pointerId);
             }}
             onPointerMove={(e) => {
-              if (drag.current)
+              if (drag.current) {
+                if (Math.abs(drag.current.y - e.clientY) > 5)
+                  drag.current.moved = true;
                 setSheetHeight(
                   Math.max(
                     26,
@@ -313,8 +338,10 @@ export default function Explorer() {
                     ),
                   ),
                 );
+              }
             }}
             onPointerUp={() => {
+              suppressHandleClick.current = !!drag.current?.moved;
               drag.current = null;
             }}
             onPointerCancel={() => {

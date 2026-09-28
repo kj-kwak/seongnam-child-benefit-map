@@ -111,11 +111,53 @@ test("mobile list can scroll and page has no horizontal overflow", async ({
   ).toBe(true);
   if (testInfo.project.name === "mobile") {
     const handle = page.getByRole("button", { name: "목록 높이 조절" });
-    await handle.click();
+    const before = await page
+      .locator(".sidebar")
+      .evaluate((el) => el.getBoundingClientRect().height);
+    const box = await handle.boundingBox();
+    if (!box) throw new Error("Handle not visible");
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2 - 140, {
+      steps: 12,
+    });
+    await page.mouse.up();
+    const after = await page
+      .locator(".sidebar")
+      .evaluate((el) => el.getBoundingClientRect().height);
+    expect(after).toBeGreaterThan(before + 100);
     const list = page.locator(".store-list");
     await list.evaluate((el) => {
       el.scrollTop = 200;
     });
     expect(await list.evaluate((el) => el.scrollTop)).toBeGreaterThan(0);
   }
+});
+
+test("data retry and denied location keep list browsing available", async ({
+  page,
+}) => {
+  await page.addInitScript(() =>
+    Object.defineProperty(navigator, "geolocation", {
+      value: {
+        getCurrentPosition: (
+          _success: unknown,
+          fail: (error: unknown) => void,
+        ) => fail({ code: 1 }),
+      },
+    }),
+  );
+  await page.route("**/data/manifest.json", (route) => route.abort());
+  await page.goto("/");
+  await expect(
+    page.getByText("가맹점 정보를 불러오지 못했어요.", { exact: false }),
+  ).toBeVisible();
+  await page.unroute("**/data/manifest.json");
+  await page.getByRole("button", { name: "다시 불러오기" }).click();
+  await expect(page.locator(".store-card").first()).toBeVisible();
+  await page.getByRole("button", { name: "현재 위치 찾기" }).click();
+  await expect(page.getByRole("status")).toContainText(
+    "위치를 확인할 수 없어요",
+  );
+  await expect(page.locator(".store-card").first()).toBeVisible();
 });
