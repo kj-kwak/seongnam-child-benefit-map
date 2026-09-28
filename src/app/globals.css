@@ -770,13 +770,8 @@ p {
   font-size: 11px;
   color: #6d7d5c;
 }
-.directions {
-  width: 100%;
-  font-size: 12px;
-}
-.directions svg:last-child {
-  margin-left: auto;
-}
+.direction-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.directions { min-width: 0; padding: 10px 8px; font-size: 11px; white-space: nowrap; }
 .detail-actions {
   display: flex;
   justify-content: space-between;

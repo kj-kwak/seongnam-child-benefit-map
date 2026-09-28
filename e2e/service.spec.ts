@@ -48,6 +48,9 @@ test("search, numeric store selection, share link and persistent favorite work w
   await expect(
     page.getByRole("link", { name: /카카오맵 길찾기/ }),
   ).toHaveAttribute("href", /^https:\/\/map.kakao.com\/link\/to\//);
+  await expect(
+    page.getByRole("link", { name: "티맵 앱에서 이 주소로 길찾기" }),
+  ).toHaveAttribute("href", `tmap://route?goalname=${encodeURIComponent(numeric.address)}&goalx=${numeric.lng}&goaly=${numeric.lat}`);
   await page.reload();
   await expect(
     page.getByRole("region", { name: "선택한 가맹점 상세" }),
