@@ -1,6 +1,12 @@
 import { test, expect } from "@playwright/test";
 import catalog from "../data/catalog.json";
 const numeric = catalog.stores.find((s) => /^\d/.test(s.name))!;
+// Existing flows explicitly verify the SDK-failure path, independent of local keys.
+test.beforeEach(async ({ page }) => {
+  await page.route("https://dapi.kakao.com/v2/maps/sdk.js?*", (route) =>
+    route.abort(),
+  );
+});
 test("search, numeric store selection, share link and persistent favorite work without map SDK", async ({
   page,
 }) => {
