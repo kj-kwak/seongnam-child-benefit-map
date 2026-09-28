@@ -20,6 +20,8 @@ Vercel 프로젝트: `seongnam-child-benefit-map`
 | GITHUB_REPOSITORY | Vercel Production | kj-kwak/seongnam-child-benefit-map |
 | GITHUB_ADMIN_TOKEN | Vercel Production | 해당 저장소로 제한한 fine-grained 토큰 |
 | KAKAO_REST_API_KEY | GitHub Actions secret, 로컬 수집 시 | 주소 좌표 변환용 본인 REST 키 |
+| NAVER_API_HUB_CLIENT_ID | Vercel Production/Preview, 로컬 | 음식점 상세의 네이버 지역 검색 Client ID |
+| NAVER_API_HUB_CLIENT_SECRET | Vercel Production/Preview, 로컬 | 음식점 상세의 네이버 지역 검색 Client Secret |
 | COLLECTION_ENABLED | GitHub Actions repository variable | 설정 완료 후 true로 변경하여 매일 수집 활성화 |
 
 GitHub 관리자 토큰은 Contents·Pull requests 읽기/쓰기, Actions 읽기 권한만 부여합니다. 개인 CLI의 광범위한 토큰을 복사하지 않습니다. 브라우저에 전달하지 않으며 Preview에는 설정하지 않습니다. 토큰 만료 전에 교체합니다.
@@ -55,3 +57,4 @@ GitHub 관리자 토큰은 Contents·Pull requests 읽기/쓰기, Actions 읽기
 - **수집 중 원본 구조 변경:** 변환 형식·지역·업종 목록·페이지 커서를 검증하며 불완전한 결과를 게시하지 않습니다. 검증을 끄지 말고 원본 조회 방식을 재확인합니다.
 
 방문자 검색어와 위치는 서버로 수집하지 않습니다. 위치·즐겨찾기는 브라우저에서 처리합니다. 운영 초기에 Vercel 빌드·요청 오류와 GitHub 수집 실행 상태를 확인하며, 본인 카카오 앱의 호출량도 확인합니다.
+네이버 지역 검색은 음식점 상세에서 사용자가 요청한 경우에만 서버에서 호출합니다. 가맹점 이름을 네이버에 전송하며 결과는 저장하지 않습니다. 네이버 콘솔에서 API 호출량과 한도를 주기적으로 확인합니다.
