@@ -1,0 +1,11 @@
+{
+  "complete": true,
+  "errors": [],
+  "collectedAt": "2026-09-28T08:48:11.758Z",
+  "rawCount": 34540,
+  "geocodingFailures": 683,
+  "baseVersion": "503d33a214f8d65df82e",
+  "version": "3997884ca64e20ea035e",
+  "partitions": 93,
+  "expectedPartitions": 93
+}
