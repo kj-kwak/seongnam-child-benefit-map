@@ -34,6 +34,7 @@ import {
   type Store,
 } from "@/lib/types";
 import { CUISINES, cuisineOf, formatWon, type PriceFilter } from "@/lib/restaurant-search";
+import NaverLocalSearch from "./NaverLocalSearch";
 const KakaoMap = dynamic(() => import("./KakaoMap"), {
   ssr: false,
   loading: () => (
@@ -724,6 +725,7 @@ export default function Explorer() {
                 </> : <span>메뉴 가격 정보 없음</span>}
                 <a href={`https://map.kakao.com/link/search/${encodeURIComponent(`${selected.name} 성남시 ${selected.district}`)}`} target="_blank" rel="noreferrer">카카오맵에서 메뉴·후기 보기 <ArrowUpRight size={12} /></a>
               </div>}
+              {cuisineOf(selected) && <NaverLocalSearch key={selected.id} storeId={selected.id} />}
               <a
                 className="primary directions"
                 href={`https://map.kakao.com/link/to/${encodeURIComponent(selected.name)},${selected.lat},${selected.lng}`}
