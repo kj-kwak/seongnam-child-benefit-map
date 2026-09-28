@@ -37,6 +37,7 @@ import { CUISINES, cuisineOf, formatWon, type PriceFilter } from "@/lib/restaura
 import NaverLocalSearch from "./NaverLocalSearch";
 import KakaoPlaceInfo from "./KakaoPlaceInfo";
 import { placeSearchQuery } from "@/lib/kakao-place";
+import { tmapDirectionsUrl } from "@/lib/navigation";
 const KakaoMap = dynamic(() => import("./KakaoMap"), {
   ssr: false,
   loading: () => (
@@ -757,37 +758,46 @@ export default function Explorer() {
                 <span>공개 데이터 반영 {date(metadata?.approvedAt || null)}</span>
                 <a href={SOURCE_URL} target="_blank" rel="noreferrer">신한카드 원본에서 사용 가능 여부 확인 <ArrowUpRight size={12} /></a>
               </div>
-              <div className="detail-footer"><a
-                className="primary directions"
-                href={`https://map.kakao.com/link/to/${encodeURIComponent(selected.name)},${selected.lat},${selected.lng}`}
-                target="_blank"
-                rel="noreferrer"
-              >
-                <Navigation size={17} /> 카카오맵 길찾기{" "}
-                <ArrowUpRight size={15} />
-              </a>
-              <div className="detail-actions">
-                <button onClick={() => copy(selected.address)}>
-                  <Copy size={17} />
-                  주소 복사
-                </button>
-                <button onClick={() => share(selected)}>
-                  <Share2 size={17} />
-                  공유
-                </button>
-                <button
-                  onClick={() => toggleFavorite(selected)}
-                  aria-pressed={favoriteIds.has(selected.id)}
-                >
-                  <Bookmark
-                    size={17}
-                    fill={
-                      favoriteIds.has(selected.id) ? "currentColor" : "none"
-                    }
-                  />
-                  {favoriteIds.has(selected.id) ? "저장됨" : "저장"}
-                </button>
-              </div>
+              <div className="detail-footer">
+                <div className="direction-options">
+                  <a
+                    className="primary directions"
+                    href={`https://map.kakao.com/link/to/${encodeURIComponent(selected.name)},${selected.lat},${selected.lng}`}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    <Navigation size={17} /> 카카오맵 길찾기
+                  </a>
+                  <a
+                    className="secondary directions"
+                    href={tmapDirectionsUrl(selected)}
+                    aria-label="티맵 앱에서 이 주소로 길찾기"
+                  >
+                    <Navigation size={17} /> 티맵 길찾기
+                  </a>
+                </div>
+                <div className="detail-actions">
+                  <button onClick={() => copy(selected.address)}>
+                    <Copy size={17} />
+                    주소 복사
+                  </button>
+                  <button onClick={() => share(selected)}>
+                    <Share2 size={17} />
+                    공유
+                  </button>
+                  <button
+                    onClick={() => toggleFavorite(selected)}
+                    aria-pressed={favoriteIds.has(selected.id)}
+                  >
+                    <Bookmark
+                      size={17}
+                      fill={
+                        favoriteIds.has(selected.id) ? "currentColor" : "none"
+                      }
+                    />
+                    {favoriteIds.has(selected.id) ? "저장됨" : "저장"}
+                  </button>
+                </div>
               </div>
             </section>
           )}
