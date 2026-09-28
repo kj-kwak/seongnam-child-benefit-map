@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Supercluster from "supercluster";
 import {
   Map as KakaoCanvas,
@@ -113,6 +113,10 @@ function LoadedMap({
 }: Props) {
   const [map, setMap] = useState<kakao.maps.Map | null>(null);
   const container = useRef<HTMLDivElement>(null);
+  const onBoundsRef = useRef(onBounds);
+  useEffect(() => {
+    onBoundsRef.current = onBounds;
+  }, [onBounds]);
   const [view, setView] = useState({ bounds: INITIAL_BOUNDS, level: 5 });
   const index = useMemo(
     () =>
@@ -153,7 +157,7 @@ function LoadedMap({
     return () => observer.disconnect();
   }, [map]);
   const [group, setGroup] = useState<Store[]>([]);
-  function report(target: kakao.maps.Map) {
+  const report = useCallback((target: kakao.maps.Map) => {
     const b = target.getBounds(),
       sw = b.getSouthWest(),
       ne = b.getNorthEast(),
@@ -165,18 +169,24 @@ function LoadedMap({
       east: ne.getLng(),
     };
     setView({ bounds, level: target.getLevel() });
-    onBounds(bounds, { lat: c.getLat(), lng: c.getLng() });
-  }
+    onBoundsRef.current(bounds, { lat: c.getLat(), lng: c.getLng() });
+  }, []);
+  // The SDK invokes onCreate whenever its callback identity changes. Keep this
+  // stable so reporting bounds cannot cause a render -> onCreate -> render loop.
+  const createMap = useCallback(
+    (target: kakao.maps.Map) => {
+      setMap(target);
+      report(target);
+    },
+    [report],
+  );
   return (
     <div className="map-canvas" ref={container}>
       <KakaoCanvas
         center={CITY_CENTER}
         level={5}
         style={{ width: "100%", height: "100%" }}
-        onCreate={(m) => {
-          setMap(m);
-          report(m);
-        }}
+        onCreate={createMap}
         onIdle={report}
         onClick={() => setGroup([])}
       >

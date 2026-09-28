@@ -19,12 +19,12 @@ pnpm dev
 pnpm typecheck
 pnpm lint
 pnpm test
-pnpm build
+NEXT_PUBLIC_KAKAO_API_KEY=e2e-placeholder pnpm build
 pnpm exec playwright install chromium
 pnpm test:e2e
 ```
 
-브라우저 테스트는 지도 SDK를 사용하지 않는 실패 대응 경로와 관리자 접근 제어를 검증합니다. 테스트는 고정된 로컬 테스트용 관리자 비밀값을 주입합니다. 운영에는 `setup-admin.ts`로 생성한 별도 난수를 사용하세요.
+브라우저 테스트는 SDK 모의 응답으로 지도 초기화·검색·선택을 검증하며, SDK 실패 대응과 관리자 접근 제어도 검사합니다. 위 빌드 명령의 placeholder는 테스트 전용입니다. 실제 배포는 본인 JavaScript 키를 설정하고 `pnpm build`를 사용합니다. 테스트는 고정된 로컬 테스트용 관리자 비밀값을 주입합니다. 운영에는 `setup-admin.ts`로 생성한 별도 난수를 사용하세요.
 
 ## 데이터
 
