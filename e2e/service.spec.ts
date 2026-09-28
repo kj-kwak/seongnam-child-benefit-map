@@ -125,7 +125,12 @@ test("restaurant discovery filters verified menu price and opens review source",
   await expect(page.locator(".store-card").first()).toContainText(pricedStore.name);
   await expect(page.locator(".store-card").first()).toContainText("6,500원");
   await page.locator(".store-main").first().click();
-  await expect(page.getByRole("region", { name: "선택한 가맹점 상세" })).toContainText("착한가격업소");
+  const detail = page.getByRole("region", { name: "선택한 가맹점 상세" });
+  await expect(detail.getByRole("region", { name: "가맹점 기본 정보" })).toBeVisible();
+  await expect(detail.getByRole("region", { name: "확인된 음식점 정보" })).toContainText("6,500원");
+  await expect(detail.getByRole("region", { name: "메뉴와 후기 확인" })).toBeVisible();
+  await expect(detail.getByRole("region", { name: "데이터 출처" })).toBeAttached();
+  await expect(detail).not.toContainText("확인되지 않음");
   await expect(page.getByRole("link", { name: /카카오맵에서 .* 검색/ })).toHaveAttribute("href", /^https:\/\/map.kakao.com\/link\/search\//);
   if ((page.viewportSize()?.width || 0) < 768) await page.getByRole("button", { name: "상세 닫기" }).click();
   await showMobileFilters(page);
@@ -139,6 +144,7 @@ test("external place search links use a short store name without the street addr
     json: { query: "의정부부대찌개 정자동", searchTerm: "의정부부대찌개 성남시 정자동", items: [{ title: "의정부부대찌개", category: "음식점", address: store.address, link: "https://example.com/place" }] },
   }));
   await page.goto(`/?store=${store.id}`);
+  await expect(page.getByRole("region", { name: "확인된 음식점 정보" })).toHaveCount(0);
   const kakao = await page.getByRole("link", { name: /카카오맵에서 .* 검색/ }).getAttribute("href");
   const naver = await page.getByRole("link", { name: "네이버에서 평점·리뷰 확인" }).getAttribute("href");
   assertSearchTerm(kakao, "https://map.kakao.com/link/search/", "의정부부대찌개 성남시 정자동");
