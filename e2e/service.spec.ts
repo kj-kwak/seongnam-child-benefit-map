@@ -93,6 +93,24 @@ test("empty results, removed favorites and map failure remain usable", async ({
   await page.getByRole("button", { name: "즐겨찾기에서 제거" }).click();
   await expect(page.getByText("자주 가는 곳을 저장해보세요")).toBeVisible();
 });
+test("Kakao place details appear only when a matching place is found", async ({ page }) => {
+  let response: { place: null | { name: string; category: string; phone: string; address: string; url: string; match: "exact" } } = { place: null };
+  await page.route("**/api/kakao/place?store=*", (route) => route.fulfill({ json: response }));
+  const placeRequest = () => page.waitForResponse((result) => result.url().includes("/api/kakao/place?store="));
+
+  let request = placeRequest();
+  await page.goto(`/?store=${numeric.id}`);
+  await request;
+  await expect(page.getByRole("region", { name: "선택한 가맹점 상세" })).toBeVisible();
+  await expect(page.getByRole("region", { name: "카카오 공개 장소 정보" })).toHaveCount(0);
+
+  response = { place: { name: numeric.name, category: "교육", phone: "031-123-4567", address: numeric.address, url: "https://place.map.kakao.com/123", match: "exact" } };
+  request = placeRequest();
+  await page.reload();
+  await request;
+  await expect(page.getByRole("region", { name: "카카오 공개 장소 정보" })).toContainText(numeric.name);
+  await expect(page.getByRole("link", { name: "카카오맵 장소 상세" })).toHaveAttribute("href", "https://place.map.kakao.com/123");
+});
 test("restaurant discovery filters verified menu price and opens review source", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: "음식점 찾기" }).click();
