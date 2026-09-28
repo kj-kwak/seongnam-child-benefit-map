@@ -87,7 +87,8 @@ export default function Explorer() {
       null,
     );
   const [locating, setLocating] = useState(false),
-    [sheetHeight, setSheetHeight] = useState(52);
+    [sheetHeight, setSheetHeight] = useState(68),
+    [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const mapInitialized = useRef(false),
     listRef = useRef<HTMLDivElement>(null),
     drag = useRef<{ y: number; height: number; moved: boolean } | null>(null);
@@ -300,6 +301,7 @@ export default function Explorer() {
     setPriceFilter("any");
     setCertifiedOnly(false);
     setFoodSort("distance");
+    setMobileFiltersOpen(false);
   }
   function reset() {
     setQuery("");
@@ -308,6 +310,27 @@ export default function Explorer() {
     setSavedOnly(false);
     setBounds(null);
   }
+  function resetAdvancedFilters() {
+    setDistrict("");
+    setSavedOnly(false);
+    setCategory("");
+    setCuisine("");
+    setPriceFilter("any");
+    setCertifiedOnly(false);
+    setBounds(null);
+  }
+  const activeFilters = [
+    district,
+    savedOnly ? "저장한 곳" : "",
+    foodMode ? cuisine : category,
+    foodMode && certifiedOnly ? "착한가격업소" : "",
+    foodMode && priceFilter !== "any" ? {
+      known: "가격 확인",
+      under10000: "1만원 미만",
+      "10000to20000": "1만~2만원",
+      over20000: "2만원 이상",
+    }[priceFilter] : "",
+  ].filter(Boolean);
   return (
     <App>
       <a className="skip-link" href="#results">
@@ -351,7 +374,7 @@ export default function Explorer() {
                 suppressHandleClick.current = false;
                 return;
               }
-              setSheetHeight((h) => (h > 65 ? 52 : 85));
+              setSheetHeight((h) => (h > 75 ? 52 : 85));
             }}
             onKeyDown={(e) => {
               if (e.key === "ArrowUp" || e.key === "ArrowDown") {
@@ -400,7 +423,7 @@ export default function Explorer() {
           >
             <span />
           </button>
-          <div className="search-panel">
+          <div className={`search-panel ${mobileFiltersOpen ? "filters-open" : ""}`}>
             <h1 className="visually-hidden">성남 아동수당 사용처 찾기</h1>
             <div className="search-box">
               <Search size={19} />
@@ -426,6 +449,15 @@ export default function Explorer() {
                 </button>
               )}
             </div>
+            <div className="mobile-discovery" role="group" aria-label="모바일 탐색 모드">
+              <button className={!foodMode ? "active" : ""} aria-pressed={!foodMode} onClick={() => setFoodMode(false)}>전체</button>
+              <button className={foodMode ? "active" : ""} aria-pressed={foodMode} onClick={() => { setFoodMode(true); setSheetHeight(85); }}>음식점 찾기</button>
+              <button className="mobile-filter-toggle" aria-expanded={mobileFiltersOpen} aria-controls="advanced-filters" onClick={() => { setMobileFiltersOpen((open) => !open); setSheetHeight(85); }}>
+                <SlidersHorizontal size={17} /> 필터{activeFilters.length > 0 && <span className="mobile-filter-count">{activeFilters.length}</span>}
+              </button>
+            </div>
+            {!mobileFiltersOpen && activeFilters.length > 0 && <p className="mobile-filter-summary" aria-label="적용 중인 필터">{activeFilters.join(" · ")}</p>}
+            <div id="advanced-filters" className={`advanced-filters ${mobileFiltersOpen ? "open" : ""}`}>
             <div className="filter-row">
               <label className="select-wrap">
                 <MapPin size={15} />
@@ -511,6 +543,11 @@ export default function Explorer() {
                 </button>
               )}
             </div>}
+            <div className="mobile-filter-actions">
+              <button className="secondary" onClick={resetAdvancedFilters}>조건 지우기</button>
+              <button className="primary" onClick={() => setMobileFiltersOpen(false)}>{result.matches.length.toLocaleString()}곳 결과 보기</button>
+            </div>
+            </div>
           </div>
           <div className="result-heading" id="results">
             <div>

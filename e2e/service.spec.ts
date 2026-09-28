@@ -1,8 +1,18 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
 import catalog from "../data/catalog.json";
 import restaurantFacts from "../data/restaurant-facts.json";
 const numeric = catalog.stores.find((s) => /^\d/.test(s.name))!;
 const pricedStore = catalog.stores.find((s) => restaurantFacts.facts[s.id as keyof typeof restaurantFacts.facts]?.representativePrice === 6500)!;
+async function showMobileFilters(page: Page) {
+  if ((page.viewportSize()?.width || 0) < 768) {
+    const toggle = page.getByRole("button", { name: /^필터/ });
+    if (await toggle.getAttribute("aria-expanded") === "false") await toggle.click();
+  }
+}
+async function showMobileResults(page: Page) {
+  if ((page.viewportSize()?.width || 0) < 768)
+    await page.getByRole("button", { name: /곳 결과 보기$/ }).click();
+}
 // Existing flows explicitly verify the SDK-failure path, independent of local keys.
 test.beforeEach(async ({ page }) => {
   await page.route("https://dapi.kakao.com/v2/maps/sdk.js?*", (route) =>
@@ -43,7 +53,9 @@ test("search, numeric store selection, share link and persistent favorite work w
     page.getByRole("region", { name: "선택한 가맹점 상세" }),
   ).toBeVisible();
   await page.getByRole("button", { name: "상세 닫기" }).click();
+  await showMobileFilters(page);
   await page.getByRole("button", { name: /저장한 곳/ }).click();
+  await showMobileResults(page);
   await expect(
     page
       .getByRole("button", {
@@ -71,7 +83,9 @@ test("empty results, removed favorites and map failure remain usable", async ({
     .getByRole("textbox", { name: "가맹점 이름 또는 주소 검색" })
     .fill("없는가맹점xyz");
   await expect(page.getByText("조건에 맞는 사용처가 없어요")).toBeVisible();
+  await showMobileFilters(page);
   await page.getByRole("button", { name: /저장한 곳/ }).click();
+  await showMobileResults(page);
   await expect(page.getByText("현재 목록에서 확인되지 않음")).toBeVisible();
   await page.getByRole("button", { name: "즐겨찾기에서 제거" }).click();
   await expect(page.getByText("자주 가는 곳을 저장해보세요")).toBeVisible();
@@ -83,14 +97,19 @@ test("restaurant discovery filters verified menu price and opens review source",
     const listHeight = await page.locator(".store-list").evaluate((el) => el.getBoundingClientRect().height);
     expect(listHeight).toBeGreaterThanOrEqual(120);
   }
+  await showMobileFilters(page);
   await page.getByRole("textbox", { name: "가맹점 이름 또는 주소 검색" }).fill(pricedStore.name);
   await page.getByRole("combobox", { name: "대표 메뉴 가격" }).selectOption("under10000");
+  await showMobileResults(page);
   await expect(page.locator(".store-card").first()).toContainText(pricedStore.name);
   await expect(page.locator(".store-card").first()).toContainText("6,500원");
   await page.locator(".store-main").first().click();
   await expect(page.getByRole("region", { name: "선택한 가맹점 상세" })).toContainText("착한가격업소");
   await expect(page.getByRole("link", { name: /카카오맵에서 .* 검색/ })).toHaveAttribute("href", /^https:\/\/map.kakao.com\/link\/search\//);
+  if ((page.viewportSize()?.width || 0) < 768) await page.getByRole("button", { name: "상세 닫기" }).click();
+  await showMobileFilters(page);
   await page.getByRole("combobox", { name: "대표 메뉴 가격" }).selectOption("over20000");
+  await showMobileResults(page);
   await expect(page.getByText("조건에 맞는 사용처가 없어요")).toBeVisible();
 });
 test("external place search links use a short store name without the street address", async ({ page }) => {
@@ -114,6 +133,7 @@ test("restaurant cuisine filtering still works if supplemental price data fails"
   await page.route("**/data/restaurant-facts-*.json", (route) => route.abort());
   await page.goto("/");
   await page.getByRole("button", { name: "음식점 찾기" }).click();
+  await showMobileFilters(page);
   await expect(page.getByText("추가 정보를 불러오지 못했어요.", { exact: false })).toBeVisible();
   await expect(page.getByRole("combobox", { name: "대표 메뉴 가격" })).toBeDisabled();
   await expect(page.getByRole("group", { name: "음식 종류 필터" }).getByRole("button", { name: /^한식/ })).toBeVisible();
@@ -126,6 +146,7 @@ test("slow supplemental data does not hold up the merchant list", async ({ page 
   await page.goto("/");
   await expect(page.locator(".store-card").first()).toBeVisible({ timeout: 1800 });
   await page.getByRole("button", { name: "음식점 찾기" }).click();
+  await showMobileFilters(page);
   await expect(page.getByRole("group", { name: "음식 종류 필터" })).toBeVisible();
 });
 test("unauthorized admin APIs and guessed routes are blocked", async ({
@@ -194,6 +215,25 @@ test("mobile list can scroll and page has no horizontal overflow", async ({
   }
 });
 
+test("mobile keeps advanced filters collapsed and shows selected conditions above a roomy list", async ({ page }, testInfo) => {
+  if (testInfo.project.name !== "mobile") return;
+  await page.goto("/");
+  await page.getByRole("button", { name: "음식점 찾기" }).click();
+  const panel = page.locator("#advanced-filters");
+  await expect(panel).toBeHidden();
+  const sidebarHeight = await page.locator(".sidebar").evaluate((el) => el.getBoundingClientRect().height);
+  const listHeight = await page.locator(".store-list").evaluate((el) => el.getBoundingClientRect().height);
+  expect(listHeight).toBeGreaterThan(sidebarHeight * 0.55);
+
+  await showMobileFilters(page);
+  await expect(panel).toBeVisible();
+  await page.getByRole("group", { name: "음식 종류 필터" }).getByRole("button", { name: /^일식/ }).click();
+  await showMobileResults(page);
+  await expect(panel).toBeHidden();
+  await expect(page.getByLabel("적용 중인 필터")).toContainText("일식");
+  await expect(page.locator(".store-card").first()).toBeVisible();
+});
+
 test("data retry and denied location keep list browsing available", async ({
   page,
 }) => {
@@ -215,6 +255,7 @@ test("data retry and denied location keep list browsing available", async ({
   await page.unroute("**/data/manifest.json");
   await page.getByRole("button", { name: "다시 불러오기" }).click();
   await expect(page.locator(".store-card").first()).toBeVisible();
+  await showMobileFilters(page);
   await page.getByRole("button", { name: "현재 위치 찾기" }).click();
   await expect(page.getByRole("status")).toContainText(
     "위치를 확인할 수 없어요",
