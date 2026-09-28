@@ -46,3 +46,34 @@ test("NAVER lookup is store-scoped, keeps provider order, and never caches or ex
     else process.env.NAVER_API_HUB_CLIENT_SECRET = oldSecret;
   }
 });
+
+test("NAVER lookup retries a shorter neighborhood query only after an empty result", async () => {
+  const store = catalog.stores.find((item) => item.name.includes("김국진의집"));
+  assert.ok(store);
+  const originalFetch = globalThis.fetch;
+  const oldId = process.env.NAVER_API_HUB_CLIENT_ID;
+  const oldSecret = process.env.NAVER_API_HUB_CLIENT_SECRET;
+  process.env.NAVER_API_HUB_CLIENT_ID = "test-id";
+  process.env.NAVER_API_HUB_CLIENT_SECRET = "test-secret";
+  const queries: string[] = [];
+  globalThis.fetch = async (input) => {
+    const query = new URL(String(input)).searchParams.get("query") || "";
+    queries.push(query);
+    return Response.json({ items: queries.length === 1 ? [] : [{ title: "관련 장소", roadAddress: "성남시 분당구 내정로7번길 14" }] });
+  };
+  try {
+    const response = await GET(new NextRequest(`http://localhost/api/naver/local?store=${store.id}`));
+    assert.equal(response.status, 200);
+    const body = await response.json();
+    assert.equal(body.items[0].title, "관련 장소");
+    assert.equal(queries.length, 2);
+    assert.match(queries[1], /의정부부대찌개 정자동/);
+    assert.equal(body.query, queries[1]);
+  } finally {
+    globalThis.fetch = originalFetch;
+    if (oldId === undefined) delete process.env.NAVER_API_HUB_CLIENT_ID;
+    else process.env.NAVER_API_HUB_CLIENT_ID = oldId;
+    if (oldSecret === undefined) delete process.env.NAVER_API_HUB_CLIENT_SECRET;
+    else process.env.NAVER_API_HUB_CLIENT_SECRET = oldSecret;
+  }
+});

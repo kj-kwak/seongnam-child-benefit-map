@@ -35,6 +35,7 @@ import {
 } from "@/lib/types";
 import { CUISINES, cuisineOf, formatWon, type PriceFilter } from "@/lib/restaurant-search";
 import NaverLocalSearch from "./NaverLocalSearch";
+import KakaoPlaceInfo from "./KakaoPlaceInfo";
 const KakaoMap = dynamic(() => import("./KakaoMap"), {
   ssr: false,
   loading: () => (
@@ -684,8 +685,8 @@ export default function Explorer() {
           </div>
           {selected && (
             <section className="store-detail" aria-label="선택한 가맹점 상세">
-              <div className="row between">
-                <span className="store-tag">{selected.category}</span>
+              <div className="detail-header row between">
+                <span className="store-tag">{selected.category} · {selected.district}</span>
                 <button
                   className="icon-button"
                   onClick={closeStore}
@@ -695,26 +696,30 @@ export default function Explorer() {
                 </button>
               </div>
               <h2>{selected.name}</h2>
-              <p>
-                <MapPin size={15} />
-                {selected.address}
-              </p>
-              <p className="detail-distance">
-                {position ? "내 위치" : "지도 중심"}에서{" "}
-                {formatDistance(distance(position || center, selected))}
-              </p>
+              <div className="detail-status"><Check size={15} /> 신한카드 아동수당 사용처 목록</div>
+              <div className="detail-keyfacts">
+                <div><span>업종</span><strong>{selected.type || selected.category}</strong></div>
+                <div><span>{position ? "내 위치에서" : "지도 중심에서"}</span><strong>{formatDistance(distance(position || center, selected))}</strong></div>
+                <div><span>자료 수집</span><strong>{date(metadata?.collectedAt || null)}</strong></div>
+              </div>
+              <div className="detail-address"><MapPin size={17} /><span>{selected.address}</span></div>
               {cuisineOf(selected) && <div className="restaurant-detail-info">
-                <span>{cuisineOf(selected)}</span>
+                <div className="detail-section-heading"><strong>음식점 정보</strong><span>{cuisineOf(selected)}</span></div>
                 {restaurantFacts?.facts[selected.id] ? <>
-                  <strong>착한가격업소</strong>
-                  {restaurantFacts.facts[selected.id].representativeMenu && <span>대표 메뉴 · {restaurantFacts.facts[selected.id].representativeMenu}</span>}
-                  {restaurantFacts.facts[selected.id].representativePrice !== null && <span>공개된 대표 메뉴 가격 · {formatWon(restaurantFacts.facts[selected.id].representativePrice!)}</span>}
-                  <a href={restaurantFacts.facts[selected.id].sourceUrl} target="_blank" rel="noreferrer">공식 목록 확인 · {date(restaurantFacts.metadata.collectedAt)} <ArrowUpRight size={12} /></a>
-                </> : <span>메뉴 가격 정보 없음</span>}
-                <a href={`https://map.kakao.com/link/search/${encodeURIComponent(`${selected.name} 성남시 ${selected.district}`)}`} target="_blank" rel="noreferrer">카카오맵에서 메뉴·후기 보기 <ArrowUpRight size={12} /></a>
+                  <span className="detail-certification">착한가격업소 인증</span>
+                  {restaurantFacts.facts[selected.id].representativeMenu && <div className="detail-menu"><span>공식 대표 메뉴</span><strong>{restaurantFacts.facts[selected.id].representativeMenu}</strong></div>}
+                  {restaurantFacts.facts[selected.id].representativePrice !== null && <div className="detail-menu"><span>공개 가격</span><strong>{formatWon(restaurantFacts.facts[selected.id].representativePrice!)}</strong></div>}
+                  <a className="detail-text-link" href={restaurantFacts.facts[selected.id].sourceUrl} target="_blank" rel="noreferrer">공식 목록 · {date(restaurantFacts.metadata.collectedAt)} 확인 <ArrowUpRight size={12} /></a>
+                </> : <span>공식 대표 메뉴·가격 정보는 확인되지 않았어요.</span>}
+                <a className="detail-text-link" href={`https://map.kakao.com/link/search/${encodeURIComponent(`${selected.name} 성남시 ${selected.district}`)}`} target="_blank" rel="noreferrer">카카오맵에서 메뉴·후기 보기 <ArrowUpRight size={12} /></a>
               </div>}
+              <KakaoPlaceInfo key={selected.id} storeId={selected.id} />
               {cuisineOf(selected) && <NaverLocalSearch key={selected.id} storeId={selected.id} />}
-              <a
+              <div className="detail-source">
+                <span>공개 데이터 반영 {date(metadata?.approvedAt || null)}</span>
+                <a href={SOURCE_URL} target="_blank" rel="noreferrer">신한카드 원본에서 사용 가능 여부 확인 <ArrowUpRight size={12} /></a>
+              </div>
+              <div className="detail-footer"><a
                 className="primary directions"
                 href={`https://map.kakao.com/link/to/${encodeURIComponent(selected.name)},${selected.lat},${selected.lng}`}
                 target="_blank"
@@ -744,6 +749,7 @@ export default function Explorer() {
                   />
                   {favoriteIds.has(selected.id) ? "저장됨" : "저장"}
                 </button>
+              </div>
               </div>
             </section>
           )}
