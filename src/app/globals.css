@@ -114,8 +114,19 @@ p {
 .skip-link:focus {
   top: 10px;
 }
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
 .site-header {
-  height: 88px;
+  height: 68px;
   flex-shrink: 0;
   border-bottom: 1px solid var(--line);
   padding: 0 36px;
@@ -200,29 +211,12 @@ p {
   z-index: 5;
 }
 .search-panel {
-  padding: 29px 26px 18px;
-}
-.eyebrow {
-  font-size: 9px;
-  letter-spacing: 1.6px;
-  font-weight: 600;
-  color: #7a8d62;
-  margin-bottom: 12px;
-}
-h1 {
-  font-size: 29px;
-  line-height: 1.5;
-  font-weight: 800;
-  letter-spacing: -1.2px;
-}
-h1 span {
-  color: var(--green);
-}
-.intro {
-  font-size: 12px;
-  color: var(--muted);
-  margin-top: 12px;
-  margin-bottom: 23px;
+  padding: 10px 26px 6px;
+  min-height: 0;
+  max-height: min(52%, 400px);
+  overflow-y: auto;
+  flex: 0 1 auto;
+  overscroll-behavior: contain;
 }
 .search-box {
   border: 1px solid #dce3d4;
@@ -251,7 +245,7 @@ h1 span {
 .filter-row {
   display: flex;
   gap: 8px;
-  margin: 12px 0 18px;
+  margin: 8px 0;
   align-items: center;
 }
 .select-wrap {
@@ -303,7 +297,7 @@ h1 span {
   flex-wrap: nowrap;
   gap: 6px;
   overflow: auto;
-  padding: 2px 0 7px;
+  padding: 2px 0 3px;
   scrollbar-width: thin;
   scrollbar-color: #dce5d4 transparent;
 }
@@ -311,7 +305,7 @@ h1 span {
   display: flex;
   gap: 6px;
   padding: 4px;
-  margin-bottom: 9px;
+  margin-bottom: 4px;
   border-radius: 12px;
   background: #e9eee4;
 }
@@ -333,7 +327,7 @@ h1 span {
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 6px;
-  margin: 5px 0;
+  margin: 2px 0;
   font-size: 11px;
 }
 .food-check, .food-select {
@@ -354,8 +348,7 @@ h1 span {
   color: var(--ink);
   font-size: 11px;
 }
-.food-meta-row > span, .food-disclaimer { color: var(--muted); font-size: 10px; line-height: 1.5; }
-.food-disclaimer { margin: 5px 0 7px; }
+.food-info { color: var(--muted); font-size: 10px; line-height: 1.5; margin: 2px 0 0; }
 .restaurant-fact-summary { color: #56713f; font-size: 11px; font-weight: 600; }
 .restaurant-detail-info {
   display: flex;
@@ -399,7 +392,7 @@ h1 span {
   border-color: var(--green);
 }
 .result-heading {
-  padding: 16px 26px 12px;
+  padding: 5px 26px;
   border-top: 1px solid var(--line);
   display: flex;
   justify-content: space-between;
@@ -421,6 +414,13 @@ h1 span {
   display: flex;
   gap: 4px;
   align-items: center;
+}
+.result-sort {
+  font-size: 10px;
+  flex-shrink: 0;
+}
+.result-sort select {
+  max-width: 135px;
 }
 .store-list {
   overflow: auto;
@@ -448,7 +448,7 @@ h1 span {
   text-align: left;
   display: flex;
   gap: 13px;
-  padding: 19px 11px;
+  padding: 12px 11px;
   width: 100%;
   min-width: 0;
 }
@@ -475,7 +475,7 @@ h1 span {
 .store-copy {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
   min-width: 0;
   padding-right: 28px;
 }
@@ -508,7 +508,7 @@ h1 span {
 }
 .bookmark-button {
   position: absolute;
-  top: 16px;
+  top: 12px;
   right: 0;
   min-width: 44px;
   min-height: 44px;
@@ -972,7 +972,7 @@ h1 span {
     width: 460px;
   }
   .search-panel {
-    padding: 35px;
+    padding: 11px 35px 6px;
   }
   .result-heading {
     padding-left: 35px;
@@ -1049,13 +1049,9 @@ h1 span {
   .search-panel {
     padding: 0 19px 4px;
     min-height: 0;
+    max-height: 55%;
     overflow-y: auto;
     overscroll-behavior: contain;
-  }
-  .eyebrow,
-  h1,
-  .intro {
-    display: none;
   }
   .search-box {
     min-height: 46px;
