@@ -1,0 +1,43 @@
+name: Collect merchant candidates
+on:
+  schedule:
+    - cron: '17 21 * * *'
+  workflow_dispatch:
+permissions:
+  contents: write
+  pull-requests: write
+concurrency:
+  group: merchant-collection
+  cancel-in-progress: false
+jobs:
+  collect:
+    if: vars.COLLECTION_ENABLED == 'true' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.28.2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Collect and validate all districts and categories
+        run: pnpm data:collect
+        env:
+          KAKAO_REST_API_KEY: ${{ secrets.KAKAO_REST_API_KEY }}
+      - name: Publish review candidate
+        run: |
+          git config user.name 'merchant-data-bot'
+          git config user.email 'merchant-data-bot@users.noreply.github.com'
+          pnpm data:candidate
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: collection-${{ github.run_id }}
+          path: artifacts/collection/
+          retention-days: 30

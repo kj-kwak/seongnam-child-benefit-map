@@ -1,0 +1,121 @@
+import { test, expect } from "@playwright/test";
+import catalog from "../data/catalog.json";
+const numeric = catalog.stores.find((s) => /^\d/.test(s.name))!;
+test("search, numeric store selection, share link and persistent favorite work without map SDK", async ({
+  page,
+}) => {
+  const errors: string[] = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+  await page.goto("/");
+  await expect(
+    page.getByRole("button", { name: /즐겨찾기 저장/ }).first(),
+  ).toBeVisible();
+  await page
+    .getByRole("textbox", { name: "가맹점 이름 또는 주소 검색" })
+    .fill(numeric.name);
+  await expect(
+    page
+      .getByRole("button", {
+        name: `${numeric.name} 즐겨찾기 저장`,
+        exact: true,
+      })
+      .first(),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: `${numeric.name} 즐겨찾기 저장`, exact: true })
+    .first()
+    .click();
+  await page.locator(".store-main").first().click();
+  await expect(page).toHaveURL(/store=/);
+  await expect(
+    page.getByRole("link", { name: /카카오맵 길찾기/ }),
+  ).toHaveAttribute("href", /^https:\/\/map.kakao.com\/link\/to\//);
+  await page.reload();
+  await expect(
+    page.getByRole("region", { name: "선택한 가맹점 상세" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "상세 닫기" }).click();
+  await page.getByRole("button", { name: /저장한 곳/ }).click();
+  await expect(
+    page
+      .getByRole("button", {
+        name: `${numeric.name} 즐겨찾기 해제`,
+        exact: true,
+      })
+      .first(),
+  ).toBeVisible();
+  expect(errors).toEqual([]);
+});
+test("empty results, removed favorites and map failure remain usable", async ({
+  page,
+}) => {
+  await page.addInitScript(() =>
+    localStorage.setItem(
+      "seongnam-favorites-v1",
+      JSON.stringify([
+        { id: "removed", name: "이전 가맹점", address: "경기 성남시 분당구" },
+      ]),
+    ),
+  );
+  await page.goto("/");
+  await expect(page.getByText("지도를 잠시 불러올 수 없어요")).toBeVisible();
+  await page
+    .getByRole("textbox", { name: "가맹점 이름 또는 주소 검색" })
+    .fill("없는가맹점xyz");
+  await expect(page.getByText("조건에 맞는 사용처가 없어요")).toBeVisible();
+  await page.getByRole("button", { name: /저장한 곳/ }).click();
+  await expect(page.getByText("현재 목록에서 확인되지 않음")).toBeVisible();
+  await page.getByRole("button", { name: "즐겨찾기에서 제거" }).click();
+  await expect(page.getByText("자주 가는 곳을 저장해보세요")).toBeVisible();
+});
+test("unauthorized admin APIs and guessed routes are blocked", async ({
+  request,
+}) => {
+  expect((await request.get("/api/admin")).status()).toBe(401);
+  expect(
+    (
+      await request.post("/api/admin", { data: { action: "approve" } })
+    ).status(),
+  ).toBe(401);
+  expect((await request.get("/guessed-admin/review")).status()).toBe(404);
+});
+test("secret entry issues protected session and cross-origin mutation is blocked", async ({
+  page,
+  context,
+}) => {
+  await page.goto(`/${"a".repeat(64)}/enter`);
+  await expect(
+    page.getByRole("heading", { name: "가맹점 데이터 관리" }),
+  ).toBeVisible();
+  const cookie = (await context.cookies()).find(
+    (c) => c.name === "seongnam-admin",
+  );
+  expect(cookie?.httpOnly).toBe(true);
+  expect(cookie?.sameSite).toBe("Strict");
+  expect(cookie?.secure).toBe(true);
+  const r = await page.request.post("/api/admin", {
+    headers: { Origin: "https://attacker.example" },
+    data: { action: "approve" },
+  });
+  expect(r.status()).toBe(403);
+});
+test("mobile list can scroll and page has no horizontal overflow", async ({
+  page,
+}, testInfo) => {
+  await page.goto("/");
+  await expect(page.locator(".store-card").first()).toBeVisible();
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth,
+    ),
+  ).toBe(true);
+  if (testInfo.project.name === "mobile") {
+    const handle = page.getByRole("button", { name: "목록 높이 조절" });
+    await handle.click();
+    const list = page.locator(".store-list");
+    await list.evaluate((el) => {
+      el.scrollTop = 200;
+    });
+    expect(await list.evaluate((el) => el.scrollTop)).toBeGreaterThan(0);
+  }
+});
