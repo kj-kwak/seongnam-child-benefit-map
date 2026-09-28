@@ -1,6 +1,6 @@
 # 성남 아동수당 지도
 
-성남시 아동수당 사용처를 지도·목록에서 찾는 모바일 웹 서비스입니다. 회원가입 없이 이름·주소 검색, 지역·업종 필터, 길찾기, 공유, 기기 내 즐겨찾기를 제공합니다.
+성남시 아동수당 사용처를 지도·목록에서 찾는 모바일 웹 서비스입니다. 회원가입 없이 이름·주소 검색, 지역·업종 필터, 음식점 탐색, 길찾기, 공유, 기기 내 즐겨찾기를 제공합니다.
 
 ## 개발
 
@@ -29,6 +29,8 @@ pnpm test:e2e
 ## 데이터
 
 `data/catalog.json`이 승인된 단일 원본입니다. 빌드 시 `public/data/manifest.json`과 내용 해시가 포함된 JSON 파일을 생성합니다. 공개 데이터는 JavaScript 번들에 포함되지 않습니다.
+
+`음식점 찾기`는 신한카드 업종으로 음식 종류를 분류합니다. 행정안전부 [성남시 착한가격업소 공개 목록](https://www.goodprice.go.kr/bssh/bsshList.do?srchCtpvCd=41&srchSggCd=41130)의 대표 메뉴·가격은 상호와 도로명 주소가 모두 일치한 가맹점에만 표시합니다. `data/restaurant-facts.json`은 독립된 출처 스냅샷이며 `pnpm data:restaurants`로 갱신합니다. 현재 목록 66곳 중 기존 가맹점과 확실히 연결된 5곳에만 적용됩니다. 가격은 대표 메뉴의 공개 가격으로, 음식점의 평균 가격이나 모든 메뉴의 가격을 뜻하지 않습니다. 가격 정보가 없는 곳은 가격 필터에서 제외됩니다. 평점은 신한카드·카카오 공개 API에 없어 표시하지 않으며 각 가게의 카카오맵 메뉴·후기 검색으로 연결합니다.
 
 초기 데이터는 원본 저장소의 공개 자료를 변환했습니다. 확인되지 않은 수집·승인 날짜는 `null`로 보존하고 화면에서 이전 자료임을 알립니다. 원본 10,399건 중 이름·주소 정규화 후 중복 1건을 정리해 10,398건으로 시작합니다. 근거는 `data/migration-report.json`에 기록했습니다.
 
@@ -63,11 +65,13 @@ Next.js 15 App Router · React 19 · TypeScript · styled-components · Kakao Ma
 - `src/lib`: 검색, 데이터 검증, 수집 응답 파싱, 관리자 인증·GitHub 작업
 - `src/components`: 사용자 탐색 화면, 지도, 독립 관리자 화면
 - `scripts`: 공개 데이터 생성, 원본 수집, 검토 후보 게시
+- `scripts/enrich-restaurants.ts`: 착한가격업소 공개 목록 조회와 상호·주소 일치 검증
 - `tests`, `e2e`: 검색 정확성·관리자 보안·배포용 빌드의 브라우저 검증
 
 ## 출처
 
 원작: [gomjellie/sungnam-child-allowance-map](https://github.com/gomjellie/sungnam-child-allowance-map), 기반 커밋 `1491b015586b7126aa835306a62ff305031c06a7`.
 가맹점 정보: [신한카드 성남시 아동수당 사용처 조회](https://www.shinhancard.com/mob/MOBFM204N/MOBFM204R11.shc).
+음식점 대표 메뉴·가격: [행정안전부 착한가격업소 공개 목록](https://www.goodprice.go.kr/bssh/bsshList.do?srchCtpvCd=41&srchSggCd=41130).
 
 성남시·신한카드 공식 서비스가 아닙니다. 실제 사용 가능 여부는 원본과 가맹점에서 확인하세요. 원작자 API 키는 현재 소스에서 제거했으며 사용하지 않습니다. 이전 Git 이력은 보존되어 있습니다.

@@ -9,6 +9,8 @@ import {
   storeId,
 } from "../src/lib/catalog";
 import { searchStores, CITY_CENTER } from "../src/lib/search";
+import { cuisineOf, matchesPrice } from "../src/lib/restaurant-search";
+import { matchGoodPrice } from "../scripts/enrich-restaurants";
 import { columnsToRows, merchantRows } from "../src/lib/collector";
 import type { Catalog } from "../src/lib/types";
 const base = {
@@ -142,6 +144,42 @@ test("real catalog validates and 10k-store search stays below 300ms", () => {
     `Search average: ${elapsed.toFixed(1)}ms (${catalog.stores.length} stores)`,
   );
   assert.ok(elapsed < 300);
+});
+
+test("restaurant cuisine, official menu prices and sorted results use the same filtered set", () => {
+  const stores = Array.from({ length: 700 }, (_, i) => toStore({
+    ...base,
+    name: `음식점 ${i}`,
+    category: "음식점",
+    type: i === 650 ? "중식" : "한식",
+  }));
+  const facts = {
+    [stores[650].id]: { designation: "착한가격업소" as const, representativeMenu: "짜장면", representativePrice: 6500, sourceUrl: "https://example.test" },
+  };
+  const options = { query: "음식점", district: "분당구", category: "", bounds: null, center: CITY_CENTER,
+    food: { enabled: true, cuisine: "중식", certifiedOnly: true, price: "under10000" as const, sort: "menuPrice" as const, facts } };
+  const result = searchStores(stores, options);
+  assert.equal(result.total, 1);
+  assert.equal(result.cuisines["한식"], undefined);
+  assert.equal(result.cuisines["중식"], 1);
+  assert.deepEqual(result.matches.map((s) => s.name), ["음식점 650"]);
+  const unpriced = searchStores(stores, { ...options, food: { ...options.food, certifiedOnly: false, price: "any" } });
+  assert.equal(unpriced.total, 700);
+  assert.equal(unpriced.cuisines["한식"], 699);
+  assert.equal(searchStores(stores, { ...options, food: { ...options.food, price: "10000to20000" } }).matches.length, 0);
+  assert.equal(cuisineOf(toStore({ ...base, category: "제과점·커피" })), "카페·베이커리");
+  assert.equal(matchesPrice(undefined, "known"), false);
+});
+
+test("official price matching requires both exact name and road address", () => {
+  const store = toStore({ ...base, name: "맛있는식당", category: "음식점", type: "한식" });
+  const publicRows = [
+    { id: "1", name: "맛있는식당", address: "경기 성남시 분당구 정자일로 1", menu: "백반", menuPrice: 8000 },
+    { id: "2", name: "맛있는식당", address: "경기 성남시 분당구 정자일로 2", menu: "백반", menuPrice: 7000 },
+  ];
+  const matched = matchGoodPrice([store], publicRows);
+  assert.equal(matched.facts[store.id].representativePrice, 8000);
+  assert.equal(Object.keys(matched.facts).length, 1);
 });
 
 test("admin review pages large diffs without losing counts or server search", async () => {

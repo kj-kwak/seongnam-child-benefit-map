@@ -24,6 +24,23 @@ export interface Catalog {
   metadata: Metadata;
   stores: Store[];
 }
+export interface RestaurantFact {
+  designation: "착한가격업소";
+  representativeMenu: string | null;
+  representativePrice: number | null;
+  sourceUrl: string;
+}
+export interface RestaurantFacts {
+  metadata: {
+    version: string;
+    sourceUrl: string;
+    collectedAt: string;
+    publicCount: number;
+    matchedCount: number;
+    ambiguousCount: number;
+  };
+  facts: Record<string, RestaurantFact>;
+}
 export interface Bounds {
   south: number;
   west: number;

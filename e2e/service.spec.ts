@@ -1,6 +1,8 @@
 import { test, expect } from "@playwright/test";
 import catalog from "../data/catalog.json";
+import restaurantFacts from "../data/restaurant-facts.json";
 const numeric = catalog.stores.find((s) => /^\d/.test(s.name))!;
+const pricedStore = catalog.stores.find((s) => restaurantFacts.facts[s.id as keyof typeof restaurantFacts.facts]?.representativePrice === 6500)!;
 // Existing flows explicitly verify the SDK-failure path, independent of local keys.
 test.beforeEach(async ({ page }) => {
   await page.route("https://dapi.kakao.com/v2/maps/sdk.js?*", (route) =>
@@ -73,6 +75,31 @@ test("empty results, removed favorites and map failure remain usable", async ({
   await expect(page.getByText("현재 목록에서 확인되지 않음")).toBeVisible();
   await page.getByRole("button", { name: "즐겨찾기에서 제거" }).click();
   await expect(page.getByText("자주 가는 곳을 저장해보세요")).toBeVisible();
+});
+test("restaurant discovery filters verified menu price and opens review source", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "음식점 찾기" }).click();
+  if (page.viewportSize()!.width < 768) {
+    const listHeight = await page.locator(".store-list").evaluate((el) => el.getBoundingClientRect().height);
+    expect(listHeight).toBeGreaterThanOrEqual(120);
+  }
+  await page.getByRole("textbox", { name: "가맹점 이름 또는 주소 검색" }).fill(pricedStore.name);
+  await page.getByRole("combobox", { name: "대표 메뉴 가격" }).selectOption("under10000");
+  await expect(page.locator(".store-card").first()).toContainText(pricedStore.name);
+  await expect(page.locator(".store-card").first()).toContainText("6,500원");
+  await page.locator(".store-main").first().click();
+  await expect(page.getByRole("region", { name: "선택한 가맹점 상세" })).toContainText("착한가격업소");
+  await expect(page.getByRole("link", { name: /카카오맵에서 메뉴·후기 보기/ })).toHaveAttribute("href", /^https:\/\/map.kakao.com\/link\/search\//);
+  await page.getByRole("combobox", { name: "대표 메뉴 가격" }).selectOption("over20000");
+  await expect(page.getByText("조건에 맞는 사용처가 없어요")).toBeVisible();
+});
+test("restaurant cuisine filtering still works if supplemental price data fails", async ({ page }) => {
+  await page.route("**/data/restaurant-facts-*.json", (route) => route.abort());
+  await page.goto("/");
+  await page.getByRole("button", { name: "음식점 찾기" }).click();
+  await expect(page.getByText("추가 정보를 불러오지 못했어요.", { exact: false })).toBeVisible();
+  await expect(page.getByRole("combobox", { name: "대표 메뉴 가격" })).toBeDisabled();
+  await expect(page.getByRole("group", { name: "음식 종류 필터" }).getByRole("button", { name: /^한식/ })).toBeVisible();
 });
 test("unauthorized admin APIs and guessed routes are blocked", async ({
   request,

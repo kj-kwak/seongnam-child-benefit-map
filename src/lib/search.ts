@@ -1,4 +1,5 @@
-import type { Bounds, Store } from "./types";
+import type { Bounds, RestaurantFact, Store } from "./types";
+import { cuisineOf, matchesPrice, type PriceFilter } from "./restaurant-search";
 export const CITY_CENTER = { lat: 37.42005, lng: 127.12655 };
 export const INITIAL_BOUNDS: Bounds = {
   south: 37.4,
@@ -38,6 +39,14 @@ export function searchStores(
     bounds: Bounds | null;
     favorites?: Set<string>;
     center: { lat: number; lng: number };
+    food?: {
+      enabled: boolean;
+      cuisine: string;
+      certifiedOnly: boolean;
+      price: PriceFilter;
+      sort: "distance" | "menuPrice";
+      facts: Record<string, RestaurantFact>;
+    };
   },
 ) {
   const query = normalize(options.query).replace(/\s/g, "");
@@ -58,12 +67,30 @@ export function searchStores(
   const categories: Record<string, number> = {};
   for (const s of base)
     categories[s.category] = (categories[s.category] || 0) + 1;
-  const matches = base
-    .filter((s) => !options.category || s.category === options.category)
+  const foodBase = options.food?.enabled ? base.filter((s) =>
+    cuisineOf(s) !== null &&
+    (!options.food!.certifiedOnly || !!options.food!.facts[s.id]) &&
+    matchesPrice(options.food!.facts[s.id], options.food!.price)) : [];
+  const cuisines: Record<string, number> = {};
+  for (const s of foodBase) {
+    const cuisine = cuisineOf(s)!;
+    cuisines[cuisine] = (cuisines[cuisine] || 0) + 1;
+  }
+  const filtered = options.food?.enabled
+    ? foodBase.filter((s) => !options.food!.cuisine || cuisineOf(s) === options.food!.cuisine)
+    : base.filter((s) => !options.category || s.category === options.category);
+  const matches = filtered
     .map((s) => ({ s, d: distance(options.center, s) }))
-    .sort((a, b) => a.d - b.d || a.s.id.localeCompare(b.s.id))
+    .sort((a, b) => {
+      if (options.food?.enabled && options.food.sort === "menuPrice") {
+        const aPrice = options.food.facts[a.s.id]?.representativePrice ?? Infinity;
+        const bPrice = options.food.facts[b.s.id]?.representativePrice ?? Infinity;
+        if (aPrice !== bPrice) return aPrice - bPrice;
+      }
+      return a.d - b.d || a.s.id.localeCompare(b.s.id);
+    })
     .map((x) => x.s);
-  return { matches, categories, total: base.length };
+  return { matches, categories, cuisines, total: options.food?.enabled ? foodBase.length : base.length };
 }
 export const formatDistance = (n: number) =>
   n < 1000 ? `${Math.round(n / 10) * 10}m` : `${(n / 1000).toFixed(1)}km`;
