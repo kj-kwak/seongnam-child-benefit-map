@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
     let relatedPlace: ReturnType<typeof matchKakaoPlace> = null;
     for (const fallback of [false, true]) {
       const query = placeQuery(store, fallback);
-      if (!query || (fallback && query === store.name)) continue;
+      if (!query || (fallback && query === placeQuery(store))) continue;
       const url = new URL("https://dapi.kakao.com/v2/local/search/keyword.json");
       url.searchParams.set("query", query);
       url.searchParams.set("x", String(store.lng));

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import catalog from "../../../../../data/catalog.json";
 import type { Store } from "@/lib/types";
-import { placeQuery } from "@/lib/kakao-place";
+import { placeQuery, placeSearchQuery } from "@/lib/kakao-place";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -30,10 +30,10 @@ export async function GET(request: NextRequest) {
   if (!clientId || !clientSecret)
     return NextResponse.json({ error: "네이버 검색을 준비 중입니다." }, { status: 503, headers: noStore });
 
-  const street = store.address.match(/[가-힣0-9]+(?:로|길)\s*\d+(?:-\d+)?/)?.[0] || "";
-  const query = `성남시 ${store.district} ${store.name}${street ? ` ${street}` : ""}`;
+  const query = placeQuery(store);
+  const searchTerm = placeSearchQuery(store);
   const neighborhood = store.address.match(/\(([가-힣]+동)\)/)?.[1] || store.district;
-  const fallback = `${placeQuery(store, true) || store.name} ${neighborhood}`;
+  const fallback = `${placeQuery(store, true)} ${neighborhood}`;
   try {
     for (const searchQuery of [query, fallback]) {
       const url = new URL("https://naverapihub.apigw.ntruss.com/search/v1/local");
@@ -56,9 +56,9 @@ export async function GET(request: NextRequest) {
         address: typeof item.roadAddress === "string" && item.roadAddress ? item.roadAddress : typeof item.address === "string" ? item.address : "",
         link: safeLink(item.link),
       }));
-      if (items.length || searchQuery === fallback) return NextResponse.json({ query: searchQuery, items }, { headers: noStore });
+      if (items.length || searchQuery === fallback) return NextResponse.json({ query: searchQuery, searchTerm, items }, { headers: noStore });
     }
-    return NextResponse.json({ query, items: [] }, { headers: noStore });
+    return NextResponse.json({ query, searchTerm, items: [] }, { headers: noStore });
   } catch {
     return NextResponse.json({ error: "네이버 검색 결과를 불러오지 못했어요." }, { status: 502, headers: noStore });
   }
