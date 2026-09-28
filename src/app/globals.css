@@ -218,6 +218,14 @@ p {
   flex: 0 1 auto;
   overscroll-behavior: contain;
 }
+.mobile-discovery,
+.mobile-filter-summary,
+.mobile-filter-actions {
+  display: none;
+}
+.advanced-filters {
+  display: contents;
+}
 .search-box {
   border: 1px solid #dce3d4;
   background: #f6f8f1;
@@ -1077,6 +1085,9 @@ p {
     overflow-y: auto;
     overscroll-behavior: contain;
   }
+  .search-panel.filters-open {
+    max-height: 65%;
+  }
   .search-box {
     min-height: 46px;
   }
@@ -1084,8 +1095,77 @@ p {
     height: 44px;
     font-size: 12px;
   }
+  .mobile-discovery {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    margin: 8px 0 3px;
+  }
+  .mobile-discovery button {
+    min-height: 44px;
+    padding: 0 12px;
+    border: 1px solid var(--line);
+    border-radius: 11px;
+    background: white;
+    font-size: 11px;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+  .mobile-discovery button.active {
+    color: white;
+    background: var(--green);
+    border-color: var(--green);
+  }
+  .mobile-discovery .mobile-filter-toggle {
+    margin-left: auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    color: var(--green);
+    background: #f5f7f0;
+  }
+  .mobile-filter-count {
+    min-width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    display: inline-grid;
+    place-items: center;
+    color: white;
+    background: var(--green);
+    font-size: 10px;
+  }
+  .mobile-filter-summary {
+    display: block;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: #5c7358;
+    font-size: 10px;
+    line-height: 20px;
+  }
+  .advanced-filters {
+    display: none;
+  }
+  .advanced-filters.open {
+    display: block;
+    padding-bottom: 8px;
+  }
+  .mobile-filter-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+  }
+  .mobile-filter-actions button {
+    flex: 1;
+    font-size: 11px;
+  }
   .filter-row {
     margin: 9px 0 7px;
+  }
+  .discovery-mode {
+    display: none;
   }
   .category-list {
     padding-bottom: 5px;
