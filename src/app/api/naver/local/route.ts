@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import catalog from "../../../../../data/catalog.json";
 import type { Store } from "@/lib/types";
+import { placeQuery } from "@/lib/kakao-place";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -31,28 +32,33 @@ export async function GET(request: NextRequest) {
 
   const street = store.address.match(/[가-힣0-9]+(?:로|길)\s*\d+(?:-\d+)?/)?.[0] || "";
   const query = `성남시 ${store.district} ${store.name}${street ? ` ${street}` : ""}`;
-  const url = new URL("https://naverapihub.apigw.ntruss.com/search/v1/local");
-  url.searchParams.set("query", query);
-  url.searchParams.set("display", "5");
+  const neighborhood = store.address.match(/\(([가-힣]+동)\)/)?.[1] || store.district;
+  const fallback = `${placeQuery(store, true) || store.name} ${neighborhood}`;
   try {
-    const response = await fetch(url, {
-      headers: {
-        "X-NCP-APIGW-API-KEY-ID": clientId,
-        "X-NCP-APIGW-API-KEY": clientSecret,
-      },
-      cache: "no-store",
-      signal: AbortSignal.timeout(8000),
-    });
-    if (!response.ok) throw new Error(`NAVER API HUB ${response.status}`);
-    const data: unknown = await response.json();
-    if (!data || typeof data !== "object" || !("items" in data) || !Array.isArray(data.items)) throw new Error("Invalid NAVER response");
-    const items = data.items.slice(0, 5).map((item: Record<string, unknown>) => ({
-      title: typeof item.title === "string" ? item.title.replace(/<\/?b>/gi, "") : "",
-      category: typeof item.category === "string" ? item.category : "",
-      address: typeof item.roadAddress === "string" && item.roadAddress ? item.roadAddress : typeof item.address === "string" ? item.address : "",
-      link: safeLink(item.link),
-    }));
-    return NextResponse.json({ query, items }, { headers: noStore });
+    for (const searchQuery of [query, fallback]) {
+      const url = new URL("https://naverapihub.apigw.ntruss.com/search/v1/local");
+      url.searchParams.set("query", searchQuery);
+      url.searchParams.set("display", "5");
+      const response = await fetch(url, {
+        headers: {
+          "X-NCP-APIGW-API-KEY-ID": clientId,
+          "X-NCP-APIGW-API-KEY": clientSecret,
+        },
+        cache: "no-store",
+        signal: AbortSignal.timeout(8000),
+      });
+      if (!response.ok) throw new Error(`NAVER API HUB ${response.status}`);
+      const data: unknown = await response.json();
+      if (!data || typeof data !== "object" || !("items" in data) || !Array.isArray(data.items)) throw new Error("Invalid NAVER response");
+      const items = data.items.slice(0, 5).map((item: Record<string, unknown>) => ({
+        title: typeof item.title === "string" ? item.title.replace(/<\/?b>/gi, "") : "",
+        category: typeof item.category === "string" ? item.category : "",
+        address: typeof item.roadAddress === "string" && item.roadAddress ? item.roadAddress : typeof item.address === "string" ? item.address : "",
+        link: safeLink(item.link),
+      }));
+      if (items.length || searchQuery === fallback) return NextResponse.json({ query: searchQuery, items }, { headers: noStore });
+    }
+    return NextResponse.json({ query, items: [] }, { headers: noStore });
   } catch {
     return NextResponse.json({ error: "네이버 검색 결과를 불러오지 못했어요." }, { status: 502, headers: noStore });
   }

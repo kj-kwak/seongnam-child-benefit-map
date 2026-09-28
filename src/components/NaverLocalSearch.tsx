@@ -10,12 +10,11 @@ type SearchResult = {
 
 export default function NaverLocalSearch({ storeId }: { storeId: string }) {
   const [result, setResult] = useState<SearchResult | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [attempt, setAttempt] = useState(0);
+  const [attempt, setAttempt] = useState(1);
 
   useEffect(() => {
-    if (!attempt) return;
     const controller = new AbortController();
     fetch(`/api/naver/local?store=${encodeURIComponent(storeId)}`, {
       cache: "no-store",
@@ -36,10 +35,9 @@ export default function NaverLocalSearch({ storeId }: { storeId: string }) {
   }, [storeId, attempt]);
 
   return <section className="naver-local" aria-label="네이버 지역 검색 결과">
-    {!attempt ? <button className="secondary" onClick={() => { setLoading(true); setAttempt(1); }}>네이버에서 관련 장소 찾기 <ArrowUpRight size={14} /></button> : <>
       <div className="naver-local-heading">
         <a className="naver-brand" href="https://developers.naver.com" target="_blank" rel="noreferrer">NAVER 오픈 API</a>
-        <strong>네이버 지역 검색 결과</strong>
+        <strong>관련 장소 검색</strong>
       </div>
       <p className="naver-local-note">현재 선택한 가맹점과 같은 곳인지 주소를 확인해주세요. 검색 순서와 결과는 네이버 제공 기준입니다.</p>
       {loading && <p role="status">네이버에서 찾는 중이에요.</p>}
@@ -54,6 +52,5 @@ export default function NaverLocalSearch({ storeId }: { storeId: string }) {
         </ol> : <p>네이버에 관련 검색 결과가 없어요.</p>}
         <a className="naver-source" href={`https://search.naver.com/search.naver?query=${encodeURIComponent(result.query)}`} target="_blank" rel="noreferrer">네이버에서 원본 검색 보기 <ArrowUpRight size={13} /></a>
       </>}
-    </>}
   </section>;
 }
